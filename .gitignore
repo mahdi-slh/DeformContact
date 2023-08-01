@@ -1,2 +1,15 @@
 /datasets/everyday_deform/object_models/*
 /datasets/everyday_deform/deformations/*
+
+# vs code
+.vscode/*
+.vscode/settings.json
+
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# C extensions
+*.so
