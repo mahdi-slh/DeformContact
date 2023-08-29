@@ -1,16 +1,33 @@
 from torch.utils.data import DataLoader
-
-from dataloaders.everyday_deform import EverydayDeformDataset
+from dataloaders.everyday_deform_v2 import EverydayDeformDataset
 from visualize import *
+import json
+
 
 
 if __name__ == "__main__":
-    dataset = EverydayDeformDataset(["bag"], "datasets/everyday_deform/")
+    with open("src/configs/default.json", "r") as f:
+        config = json.load(f)
 
-    # Create a DataLoader
-    dataloader = DataLoader(dataset, batch_size=32, shuffle=True)
+    dataset_config = config["dataset"]
+    dataloader_config = config["dataloader"]
+    visualization_config = config["visualization"]
 
-    for rest_mesh, def_mesh, meta_data in dataloader:
-        print(rest_mesh.shape, def_mesh.shape, meta_data)
-        visualize_deformation_field(rest_mesh[1], def_mesh[1])
+    dataset = EverydayDeformDataset(
+        root_dir = dataset_config["root_dir"], 
+        obj_list = dataset_config["obj_list"], 
+        n_points = dataset_config["n_points"],
+        graph_method = dataset_config["graph_method"],
+        radius = dataset_config["radius"],
+        k = dataset_config["k"]
+    )
+
+    dataloader = DataLoader(dataset, batch_size=dataloader_config["batch_size"], shuffle=dataloader_config["shuffle"])
+
+    for obj_name, (rest_points, rest_edge_index), (def_points, def_edge_index), meta_data in dataloader:
+        visualize_deformation_field(rest_points[0], def_points[0], meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
+        visualize_merged_graphs(rest_points[0], rest_edge_index[0], def_points[0], def_edge_index[0])
         
+
+
+

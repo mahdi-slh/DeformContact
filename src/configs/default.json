@@ -1,0 +1,26 @@
+{
+    "dataset": {
+        "root_dir": "datasets/DeformationData/",
+        "obj_list": ["Box"],
+        "n_points": 11024,
+        "radius": 0.2,
+        "k":5,
+        "graph_method":"knn"
+    },
+    "visualization": {
+        "sphere_radius_contact": 0.1,
+        "sphere_radius_deform": 0.01,
+        "colors": {
+            "contact_sphere": [0, 0, 1],
+            "deform_sphere": [1, 1, 0],
+            "rest_pcd": [1, 0, 0],
+            "def_pcd": [0, 1, 0],
+            "lineset": [0.5, 0.5, 0.5],
+            "vector": [0, 0, 0]
+        }
+    },
+    "dataloader": {
+        "batch_size": 1,
+        "shuffle": true
+    }
+}

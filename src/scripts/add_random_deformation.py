@@ -1,47 +1,52 @@
 import open3d as o3d
 import numpy as np
+import json
 
+frame_id = '00'
 
-def apply_deformation(mesh, center, radius, sigma):
-    # Get vertices as a numpy array
+def apply_deformation(mesh, center, sigma_vector):
     vertices = np.asarray(mesh.vertices)
-
-    # Compute the distances from the center to each vertex
-    distances = np.linalg.norm(vertices - center, axis=1)
-
-    # Compute the Gaussian deformation for each distance
-    deformation = np.exp(-(distances**2)/(2*(sigma**2)))
-
-    # Only apply deformation inside the sphere
-    deformation[distances > radius] = 0
-
-    # Apply the deformation to the vertices
-    # Multiply by the deformation vector to have a radial deformation
-    vertices += (vertices - center) * deformation[:, np.newaxis]
-
-    # Assign the deformed vertices back to the mesh
+    differences = vertices - center
+    deformation = np.exp(-((differences**2)/(2*(sigma_vector**2))))
+    vertices += differences * deformation
+    force = -2 * differences * deformation
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    return vertices, np.sum(force, axis=0)
 
+mesh_path = f"datasets/everyday_deform/deformations/bag/{frame_id}_rest.obj"
+mesh = o3d.io.read_triangle_mesh(mesh_path)
 
-# Load the triangle mesh
-mesh = o3d.io.read_triangle_mesh("datasets/everyday_deform/deformations/bag/01_rest.obj")
+# Randomly select a vertex as the center
+vertex_indices = np.arange(len(mesh.vertices))
+random_vertex_index = np.random.choice(vertex_indices)
+center = np.asarray(mesh.vertices)[random_vertex_index]
 
+sigma_vector = np.random.uniform(low=0, high=0.05, size=3)
+deformed_vertices, force_vector = apply_deformation(mesh, center, sigma_vector)
+closest_vertice = deformed_vertices[random_vertex_index]
 
-# Define the sphere parameters
-sphere_radius = 0.3  # Adjust as needed
-sigma = 0.3  # Adjust as needed
+data = {
+    "contact_event": {
+        "contact_position": {
+            "x": closest_vertice[0],
+            "y": closest_vertice[1],
+            "z": closest_vertice[2]
+        },
+        "contact_type": "sharp",
+        "timestamp": 0.0,
+        "force_vector": {
+            "fx": force_vector[0],
+            "fy": force_vector[1],
+            "fz": force_vector[2]
+        }
+    }
+}
 
-# Get the bounding box of the mesh
-bbox = mesh.get_axis_aligned_bounding_box()
+json_path = f"datasets/everyday_deform/deformations/bag/{frame_id}.json"
+with open(json_path, 'w') as file:
+    json.dump(data, file, indent=4)
 
-# Generate a random center for the sphere inside the bounding box
-center = np.random.uniform(low=bbox.min_bound, high=bbox.max_bound)
-
-# Apply the deformation
-apply_deformation(mesh, center, sphere_radius, sigma)
-
-# Visualize the deformed mesh
 o3d.visualization.draw_geometries([mesh])
 
-# Save the deformed mesh
-o3d.io.write_triangle_mesh("datasets/everyday_deform/deformations/bag/01_def.obj", mesh)
+mesh_out_path = f"datasets/everyday_deform/deformations/bag/{frame_id}_def.obj"
+o3d.io.write_triangle_mesh(mesh_out_path, mesh)
