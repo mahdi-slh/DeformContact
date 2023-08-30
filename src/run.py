@@ -1,9 +1,26 @@
 from torch.utils.data import DataLoader
 from dataloaders.everyday_deform_v2 import EverydayDeformDataset
 from visualize import *
+from torch_geometric.data import Batch
+
 import json
+import torch
 
+def collate_fn(batch):
+    obj_names, rest_graphs, def_graphs, metas, sphere_graphs = zip(*batch)
+    
+    # Collate simple data
+    obj_names = [name for name in obj_names]
 
+    # For meta data
+    tensor_meta_keys = [key for key in metas[0].keys() if isinstance(metas[0][key], torch.Tensor)]
+    scalar_meta_keys = [key for key in metas[0].keys() if not isinstance(metas[0][key], torch.Tensor)]
+
+    collated_meta = {key: torch.stack([meta[key] for meta in metas]) for key in tensor_meta_keys}
+    for key in scalar_meta_keys:
+        collated_meta[key] = [meta[key] for meta in metas]
+
+    return obj_names, rest_graphs, def_graphs, collated_meta, sphere_graphs
 
 if __name__ == "__main__":
     with open("src/configs/default.json", "r") as f:
@@ -22,12 +39,11 @@ if __name__ == "__main__":
         k = dataset_config["k"]
     )
 
-    dataloader = DataLoader(dataset, batch_size=dataloader_config["batch_size"], shuffle=dataloader_config["shuffle"])
 
-    for obj_name, (rest_points, rest_edge_index), (def_points, def_edge_index), meta_data in dataloader:
-        visualize_deformation_field(rest_points[0], def_points[0], meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
-        visualize_merged_graphs(rest_points[0], rest_edge_index[0], def_points[0], def_edge_index[0])
-        
+    dataloader = DataLoader(dataset, batch_size=dataloader_config["batch_size"], shuffle=dataloader_config["shuffle"], collate_fn=collate_fn)
+
+    for obj_name, rest_graphs, def_graphs, meta_data, sphere_graph in dataloader:
 
 
-
+        visualize_deformation_field(rest_graphs[0].pos,def_graphs[0].pos, meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
+        visualize_merged_graphs(rest_graphs[0],def_graphs[0],sphere_graph[0])

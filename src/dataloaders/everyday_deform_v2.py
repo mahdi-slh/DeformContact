@@ -5,6 +5,8 @@ import numpy as np
 import json
 import os
 from utils.pointcloud_utils import fps_points,construct_graph
+from torch_geometric.data import Data
+
 
 
 
@@ -31,48 +33,82 @@ class EverydayDeformDataset(Dataset):
         self.k = k
         self.graph_method=graph_method
         self.sampled_indices = fps_points(self.rest_mesh_np, n_points, return_indices=True)[1]
+        self.sphere_radius = 0.25
+
 
     def __len__(self):
         return len(self.samples)
 
+    def _load_deformed_mesh(self, sample_path, meta_data):
+        def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
+        def_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
+        return np.asarray(def_mesh.vertices)
+
+    def _sample_points(self, def_mesh_np):
+        sampled_rest_mesh_np = self.rest_mesh_np[self.sampled_indices]
+        sampled_def_mesh_np = def_mesh_np[self.sampled_indices]
+        return torch.tensor(sampled_rest_mesh_np, dtype=torch.float32), torch.tensor(sampled_def_mesh_np, dtype=torch.float32)
+
+    def _construct_graph(self, mesh_tensor):
+        if self.graph_method == 'knn':
+            return construct_graph(mesh_tensor, k=self.k)
+        elif self.graph_method == 'radius':
+            return construct_graph(mesh_tensor, radius=self.radius)
+
+    def _create_sphere_pointcloud(self, contact_point_np):
+        sphere_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=self.sphere_radius)
+        sphere_contact_mesh.translate(contact_point_np)
+        pcd_contact = o3d.geometry.PointCloud()
+        pcd_contact.points = o3d.utility.Vector3dVector(np.array(sphere_contact_mesh.vertices))
+        return sphere_contact_mesh
+
+    def _compute_feature_vector(self, sphere_contact_mesh, vector_lineset):
+        vertices = np.asarray(sphere_contact_mesh.vertices)
+        triangles = np.asarray(sphere_contact_mesh.triangles)
+        vertices_t = torch.tensor(vertices, dtype=torch.float32)
+
+        edge_indices = [[triangle[i], triangle[(i+1)%3]] for triangle in triangles for i in range(3)]
+        edge_indices_t = torch.tensor(edge_indices, dtype=torch.long).t().contiguous()
+
+        vector_lineset_np = np.asarray(vector_lineset.points)
+        vector_diff = vector_lineset_np[1] - vector_lineset_np[0]
+        vector_diff_t = torch.tensor(vector_diff, dtype=torch.float32)
+        vector_broadcasted = vector_diff_t.repeat(vertices_t.shape[0], 1)
+
+        features = torch.cat([vertices_t, vector_broadcasted], dim=1)
+        
+        return Data(x=features, edge_index=edge_indices_t, pos=vertices_t)
+
     def __getitem__(self, idx):
         sample_path = self.samples[idx]
         obj_name = os.path.basename(os.path.dirname(sample_path))
-        sample_id = os.path.basename(sample_path)
 
-        # Load the meta data
         meta_data = self._read_meta_data(sample_path)
+        def_mesh_np = self._load_deformed_mesh(sample_path, meta_data)
 
-        # Load the deformed mesh
-        def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
-        def_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
-        def_mesh_np = np.asarray(def_mesh.vertices)
-
-        # Use the pre-computed FPS indices to get corresponding points from both meshes
-        sampled_rest_mesh_np = self.rest_mesh_np[self.sampled_indices]
-        sampled_def_mesh_np = def_mesh_np[self.sampled_indices]
-
-        # Convert the sampled points to torch tensors
-        sampled_rest_mesh_t = torch.tensor(sampled_rest_mesh_np, dtype=torch.float32)
-        sampled_def_mesh_t = torch.tensor(sampled_def_mesh_np, dtype=torch.float32)
-
-        # Convert the tensors to KNN graphs for the resting mesh
+        sampled_rest_mesh_t, sampled_def_mesh_t = self._sample_points(def_mesh_np)
         if self.graph_method =='knn':
-
             rest_edge_index = construct_graph(sampled_rest_mesh_t,k=self.k)
         elif self.graph_method =='radius':
             rest_edge_index = construct_graph(sampled_rest_mesh_t,radius=self.radius)
 
-
-        # Use the same edge indices for the deformed mesh
         def_edge_index = rest_edge_index.clone()
 
+        rest_graph = Data(x=sampled_rest_mesh_t, edge_index=rest_edge_index, pos=sampled_rest_mesh_t) 
+        def_graph = Data(x=sampled_def_mesh_t, edge_index=def_edge_index, pos=sampled_def_mesh_t)
+
+        contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
+        origin_point_np = meta_data['deformer_origin'].detach().numpy()
+        vector_lineset = o3d.geometry.LineSet()
+        vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
+        vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
+
+        sphere_contact_mesh = self._create_sphere_pointcloud(contact_point_np)
+        sphere_graph = self._compute_feature_vector(sphere_contact_mesh, vector_lineset)
+
+        return obj_name, rest_graph, def_graph, meta_data, sphere_graph
+
         
-
-        return obj_name, (sampled_rest_mesh_t, rest_edge_index), (sampled_def_mesh_t, def_edge_index), meta_data
-
-
-    
 
     def _unity_to_open3d(self, vector_or_position):
         x, y, z = vector_or_position
@@ -160,5 +196,3 @@ class EverydayDeformDataset(Dataset):
             'deformer_collision_position': deformer_collision_position,
             'object_rigid_pos':object_rigid_pos
         }
-
-    # ... rest of the class ...

@@ -1,10 +1,10 @@
 {
     "dataset": {
-        "root_dir": "datasets/DeformationData/",
+        "root_dir": "datasets/everyday_deform/deformations/",
         "obj_list": ["Box"],
-        "n_points": 11024,
+        "n_points": 9024,
         "radius": 0.2,
-        "k":5,
+        "k":7,
         "graph_method":"knn"
     },
     "visualization": {
@@ -20,7 +20,7 @@
         }
     },
     "dataloader": {
-        "batch_size": 1,
+        "batch_size": 4,
         "shuffle": true
     }
 }

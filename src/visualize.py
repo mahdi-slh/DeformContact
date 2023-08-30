@@ -7,10 +7,16 @@ import numpy as np
 import open3d as o3d
 import numpy as np
 import open3d as o3d
+import open3d as o3d
+import numpy as np
 
-def visualize_deformation_field(rest_mesh, def_mesh, contact_point, origin_point):
-    rest_mesh_np = rest_mesh.detach().numpy()
-    def_mesh_np = def_mesh.detach().numpy()
+import open3d as o3d
+import numpy as np
+
+def visualize_deformation_field(rest_graph, def_graph, contact_point, origin_point):
+    # Extract node features (points) from the graph object
+    rest_mesh_np = rest_graph.detach().numpy()
+    def_mesh_np = def_graph.detach().numpy()
     contact_point_np = contact_point.detach().numpy()
     origin_point_np = origin_point.detach().numpy()
 
@@ -29,15 +35,12 @@ def visualize_deformation_field(rest_mesh, def_mesh, contact_point, origin_point
     n = len(rest_mesh_np)
     lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
 
-    sphere_radius = 0.02
-    sphere_contact = o3d.geometry.TriangleMesh.create_sphere(radius=0.1)
-    sphere_contact.translate(contact_point_np)
-    sphere_contact.paint_uniform_color([0, 0, 1])  # Blue for the contact sphere
-    
-    # Yellow sphere for the point with the biggest deformation field size
-    sphere_deform = o3d.geometry.TriangleMesh.create_sphere(radius=sphere_radius)
-    sphere_deform.translate(max_deformation_point)
-    sphere_deform.paint_uniform_color([1, 1, 0])  # Yellow
+    # Create spheres as point clouds by converting the vertices of the triangle meshes to point clouds
+    sphere_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+    sphere_contact_mesh.translate(contact_point_np)
+    pcd_contact = o3d.geometry.PointCloud()
+    pcd_contact.points = o3d.utility.Vector3dVector(np.array(sphere_contact_mesh.vertices))
+    pcd_contact.paint_uniform_color([0, 0, 1])  # Blue
 
     # Create the vector from the origin to the contact point
     vector_lineset = o3d.geometry.LineSet()
@@ -45,57 +48,58 @@ def visualize_deformation_field(rest_mesh, def_mesh, contact_point, origin_point
     vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
     vector_lineset.colors = o3d.utility.Vector3dVector([[0, 0, 0]])  # Black color for the vector, adjust as necessary
 
-    pcd_rest.paint_uniform_color([0, 0.8,0])
+    pcd_rest.paint_uniform_color([0, 0.8, 0])
     pcd_def.paint_uniform_color([0.8, 0.8, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
 
     coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
     print(contact_point_np, max_deformation_point)
-    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, sphere_contact, sphere_deform, coor, vector_lineset])
+    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_contact, coor, vector_lineset])
 
 
-def visualize_merged_graphs(rest_points, rest_edge_index, def_points, def_edge_index, translation=1.2):
-    """
-    Visualize the rest and deformed graphs side-by-side using Open3D.
-    
-    Args:
-    - rest_points (torch.Tensor): Tensor of shape [num_points, 3] representing the rest point cloud.
-    - rest_edge_index (torch.Tensor): Tensor of shape [2, num_edges] defining the edge relations for rest graph.
-    - def_points (torch.Tensor): Tensor of shape [num_points, 3] representing the deformed point cloud.
-    - def_edge_index (torch.Tensor): Tensor of shape [2, num_edges] defining the edge relations for deformed graph.
-    - translation (float): Distance to translate the deformed object for side-by-side visualization.
-    """
-    
-    # Convert tensor to numpy
-    rest_points_np = rest_points.cpu().numpy()
-    rest_edge_index_np = rest_edge_index.t().cpu().numpy()
-    
-    def_points_np = def_points.cpu().numpy()
-    def_edge_index_np = def_edge_index.t().cpu().numpy()
 
-    # Translate deformed points for side-by-side visualization
+def visualize_merged_graphs(rest_graph, def_graph, sphere_graph, translation=1.2):
+    # Extract points and edges from the graph object
+    rest_points_np = rest_graph.pos.cpu().numpy()
+    def_points_np = def_graph.pos.cpu().numpy()
+    sphere_points_np = sphere_graph.pos.cpu().numpy()
+
+    rest_edge_index_np = rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    sphere_edge_index_np = sphere_graph.edge_index.t().cpu().numpy().astype(np.int32)
+
+    # Translate deformed and sphere points for side-by-side visualization
     def_points_np += [translation, 0, 0]
-    
-    # Create Open3D point cloud objects
+    sphere_points_np += [translation, 0, 0]
+
+    # Create Open3D point cloud objects for rest, def, and sphere
     rest_pcd = o3d.geometry.PointCloud()
     rest_pcd.points = o3d.utility.Vector3dVector(rest_points_np)
     rest_pcd.paint_uniform_color([0, 0.8, 0])  # Red for rest mesh
-    
+
     def_pcd = o3d.geometry.PointCloud()
     def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
     def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Green for deformed mesh
-    
-    # Create lines for the edges
+
+    sphere_pcd = o3d.geometry.PointCloud()
+    sphere_pcd.points = o3d.utility.Vector3dVector(sphere_points_np)
+    sphere_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Some color for the sphere mesh, adjust as necessary
+
+    # Create lines for the edges for rest, def, and sphere
     rest_lines = o3d.geometry.LineSet()
     rest_lines.points = o3d.utility.Vector3dVector(rest_points_np)
     rest_lines.lines = o3d.utility.Vector2iVector(rest_edge_index_np)
-    
+
     def_lines = o3d.geometry.LineSet()
     def_lines.points = o3d.utility.Vector3dVector(def_points_np)
     def_lines.lines = o3d.utility.Vector2iVector(def_edge_index_np)
-    
+
+    sphere_lines = o3d.geometry.LineSet()
+    sphere_lines.points = o3d.utility.Vector3dVector(sphere_points_np)
+    sphere_lines.lines = o3d.utility.Vector2iVector(sphere_edge_index_np)
+
     # Visualize
-    o3d.visualization.draw_geometries([rest_pcd, def_pcd, rest_lines, def_lines])
+    o3d.visualization.draw_geometries([rest_pcd, def_pcd, sphere_pcd, rest_lines, def_lines, sphere_lines])
 
 
 
