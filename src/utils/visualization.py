@@ -48,71 +48,77 @@ def visualize_deformation_field(rest_graph, def_graph, contact_point, origin_poi
 
 
 
-def visualize_merged_graphs(rest_graph, def_graph, collider_graph, pred_graph, translation=1.2):
-    # Extract points and edges from the graph object
+def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pred_graph=None, translation=1.2):
     rest_points_np = rest_graph.pos.cpu().numpy()
-    def_points_np = def_graph.pos.cpu().numpy()
-    collider_points_np_1 = collider_graph.pos.cpu().numpy()
-    collider_points_np_2 = collider_graph.clone().pos.cpu().numpy()
-    pred_points_np = pred_graph.pos.cpu().numpy()
-
     rest_edge_index_np = rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
-    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
-    collider_edge_index_np = collider_graph.edge_index.t().cpu().numpy().astype(np.int32)
-    pred_edge_index_np = pred_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
-    # Translate deformed, collider, and predicted points for side-by-side visualization
-    def_points_np += [translation, 0, 0]
-    collider_points_np_1 += [translation, 0, 0]
-    pred_points_np += [2*translation, 0, 0]
-    collider_points_np_2 += [2*translation, 0, 0]
-
-    # Create Open3D point cloud objects for rest, def, collider, and pred
     rest_pcd = o3d.geometry.PointCloud()
     rest_pcd.points = o3d.utility.Vector3dVector(rest_points_np)
     rest_pcd.paint_uniform_color([0, 0.8, 0])  # Green for rest mesh
 
-    def_pcd = o3d.geometry.PointCloud()
-    def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
-    def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Yellow for deformed mesh
-
-    collider_pcd_1 = o3d.geometry.PointCloud()
-    collider_pcd_1.points = o3d.utility.Vector3dVector(collider_points_np_1)
-    collider_pcd_1.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
-
-    collider_pcd_2 = o3d.geometry.PointCloud()
-    collider_pcd_2.points = o3d.utility.Vector3dVector(collider_points_np_2)
-    collider_pcd_2.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
-
-    
-
-    pred_pcd = o3d.geometry.PointCloud()
-    pred_pcd.points = o3d.utility.Vector3dVector(pred_points_np)
-    pred_pcd.paint_uniform_color([0.8, 0, 0])  # Red for predicted mesh
-
-    # Create lines for the edges for rest, def, collider, and pred
     rest_lines = o3d.geometry.LineSet()
     rest_lines.points = o3d.utility.Vector3dVector(rest_points_np)
     rest_lines.lines = o3d.utility.Vector2iVector(rest_edge_index_np)
 
+    geometries = [rest_pcd, rest_lines]
+
+
+    def_points_np = def_graph.pos.cpu().numpy() + [translation, 0, 0]
+    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    
+    def_pcd = o3d.geometry.PointCloud()
+    def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
+    def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Yellow for deformed mesh
+    
     def_lines = o3d.geometry.LineSet()
     def_lines.points = o3d.utility.Vector3dVector(def_points_np)
     def_lines.lines = o3d.utility.Vector2iVector(def_edge_index_np)
+    
+    geometries.extend([def_pcd, def_lines])
 
-    collider_lines_1 = o3d.geometry.LineSet()
-    collider_lines_1.points = o3d.utility.Vector3dVector(collider_points_np_1)
-    collider_lines_1.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
 
-    collider_lines_2 = o3d.geometry.LineSet()
-    collider_lines_2.points = o3d.utility.Vector3dVector(collider_points_np_2)
-    collider_lines_2.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
+    collider_points_np = collider_graph.pos.cpu().numpy() + [translation, 0, 0]
+    collider_edge_index_np = collider_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    
+    collider_pcd = o3d.geometry.PointCloud()
+    collider_pcd.points = o3d.utility.Vector3dVector(collider_points_np)
+    collider_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
+    
+    collider_lines = o3d.geometry.LineSet()
+    collider_lines.points = o3d.utility.Vector3dVector(collider_points_np)
+    collider_lines.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
+    
+    geometries.extend([collider_pcd, collider_lines])
 
-    pred_lines = o3d.geometry.LineSet()
-    pred_lines.points = o3d.utility.Vector3dVector(pred_points_np)
-    pred_lines.lines = o3d.utility.Vector2iVector(pred_edge_index_np)
+    if pred_graph:
+        pred_points_np = pred_graph.pos.cpu().numpy() + [2*translation, 0, 0]
+        pred_edge_index_np = pred_graph.edge_index.t().cpu().numpy().astype(np.int32)
+        
+        pred_pcd = o3d.geometry.PointCloud()
+        pred_pcd.points = o3d.utility.Vector3dVector(pred_points_np)
+        pred_pcd.paint_uniform_color([0.8, 0, 0])  # Red for predicted mesh
+        
+        pred_lines = o3d.geometry.LineSet()
+        pred_lines.points = o3d.utility.Vector3dVector(pred_points_np)
+        pred_lines.lines = o3d.utility.Vector2iVector(pred_edge_index_np)
+        
+        geometries.extend([pred_pcd, pred_lines])
 
-    # Visualize
-    o3d.visualization.draw_geometries([rest_pcd, def_pcd, collider_pcd_1,collider_pcd_2, pred_pcd, rest_lines, def_lines, collider_lines_1, collider_lines_2, pred_lines])
+
+        collider_points_np = collider_graph.clone().pos.cpu().numpy() + [2*translation, 0, 0]
+        collider_edge_index_np = collider_graph.clone().edge_index.t().cpu().numpy().astype(np.int32)
+        
+        collider_pcd = o3d.geometry.PointCloud()
+        collider_pcd.points = o3d.utility.Vector3dVector(collider_points_np)
+        collider_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
+        
+        collider_lines = o3d.geometry.LineSet()
+        collider_lines.points = o3d.utility.Vector3dVector(collider_points_np)
+        collider_lines.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
+        
+        geometries.extend([collider_pcd, collider_lines])
+
+    o3d.visualization.draw_geometries(geometries)
 
 def visualize_meshes(mesh1, mesh2):
     """

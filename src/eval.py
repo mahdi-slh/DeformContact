@@ -3,13 +3,24 @@ from torch.utils.data import DataLoader
 from dataloaders.everyday_deform_v2 import EverydayDeformDataset
 from torch_geometric.data import Batch
 from utils.visualization import *
-from utils.collate import collate_fn
+from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
 import torch.nn as nn
+import os
+import json
 
 if __name__ == "__main__":
-    config = Config()
+    log_dir = input("Enter the path of the log directory (e.g., logs/2023-08-30_14-30-45/): ")
+
+    # Load configuration from saved file
+    with open(os.path.join(log_dir, 'config.json'), 'r') as f:
+        saved_config = json.load(f)
+    
+    config = Config()  # Initialize a default config
+    for key, value in saved_config.items():
+        setattr(config, key, value)  # Override with saved values
+
 
     # Load dataset and dataloader
     val_dataset = EverydayDeformDataset(root_dir=config.dataset["root_dir"], 
@@ -27,10 +38,10 @@ if __name__ == "__main__":
     )
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    
+
     # Initialize and load model
     model = GraphNet(input_dims=config.network["input_dims"], hidden_dim=config.network["hidden_dim"], output_dim=config.network["output_dim"]).to(device)
-    model.load_state_dict(torch.load(config.training["model_save_path"]))
+    model.load_state_dict(torch.load(os.path.join(log_dir, 'model_weights.pth')))
     model.eval()
 
     criterion = nn.MSELoss()
