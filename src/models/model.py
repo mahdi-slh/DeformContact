@@ -1,37 +1,54 @@
 import torch.nn as nn
-from torch_geometric.nn import GATConv, knn
+from torch_geometric.nn import GATConv, GCNConv, TAGConv, knn
 import torch
 import torch.nn.functional as F
-from torch_scatter import scatter_mean  # Added import for scatter_mean
+from torch_scatter import scatter_mean
 
 class GraphNet(nn.Module):
-    def __init__(self, input_dims, hidden_dim, output_dim):
+    def __init__(self, input_dims, hidden_dim, output_dim, num_layers=2, dropout_rate=0.5, knn_k=3, backbone="GATConv"):
         super(GraphNet, self).__init__()
 
+        self.num_layers = num_layers
+        self.backbone = backbone
+
+        # Initialize layer lists for resting and collider graphs
+        self.conv_layers_resting = nn.ModuleList()
+        self.conv_layers_collider = nn.ModuleList()
+
+        self.dropout_rate = dropout_rate
+        self.knn_k = knn_k
+
+        # Choose the appropriate convolution layer based on the selected backbone
+        conv_layer = GATConv if self.backbone == "GATConv" else GCNConv if self.backbone == "GCNConv" else TAGConv
+
         # Layers for resting graph
-        self.conv1_resting = GATConv(input_dims[0], hidden_dim)
-        self.conv2_resting = GATConv(hidden_dim, hidden_dim)
-        
+        for _ in range(self.num_layers):
+            self.conv_layers_resting.append(conv_layer(input_dims[0], hidden_dim))
+            input_dims[0] = hidden_dim  # Update input dimensions for subsequent layers
+
         # Layers for collider graph
-        self.conv1_collider = GATConv(input_dims[1], hidden_dim)
-        self.conv2_collider = GATConv(hidden_dim, hidden_dim)
+        for _ in range(self.num_layers):
+            self.conv_layers_collider.append(conv_layer(input_dims[1], hidden_dim))
+            input_dims[1] = hidden_dim  # Update input dimensions for subsequent layers
 
         # Decoder
-        self.decoder = nn.Linear(hidden_dim * 2, output_dim)  # *2 because we will concatenate features
+        self.decoder = nn.Linear(hidden_dim * 2, output_dim)
 
     def forward(self, graph_resting, graph_collider):
         # For resting graph
-        x_resting = F.relu(self.conv1_resting(graph_resting.x, graph_resting.edge_index))
-        x_resting = F.dropout(x_resting, training=self.training)
-        x_resting = F.relu(self.conv2_resting(x_resting, graph_resting.edge_index))
+        x_resting = graph_resting.x
+        for conv in self.conv_layers_resting:
+            x_resting = F.relu(conv(x_resting, graph_resting.edge_index))
+            x_resting = F.dropout(x_resting, p=self.dropout_rate, training=self.training)
         
         # For collider graph
-        x_collider = F.relu(self.conv1_collider(graph_collider.x, graph_collider.edge_index))
-        x_collider = F.dropout(x_collider, training=self.training)
-        x_collider = F.relu(self.conv2_collider(x_collider, graph_collider.edge_index))
+        x_collider = graph_collider.x
+        for conv in self.conv_layers_collider:
+            x_collider = F.relu(conv(x_collider, graph_collider.edge_index))
+            x_collider = F.dropout(x_collider, p=self.dropout_rate, training=self.training)
         
         # Using KNN to establish interaction between x_resting and x_collider
-        edge_index = knn(x_resting, x_collider, k=3)
+        edge_index = knn(x_resting, x_collider, k=self.knn_k)
         col, row = edge_index
 
         # Use scatter_mean for aggregation of features

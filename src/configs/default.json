@@ -26,13 +26,16 @@
     "training": {
         "n_epochs": 200,
         "learning_rate": 0.0001,
-        "model_save_path": "model.pth"
+        "model_save_path": "model.pth",
+        "lambda_gradient": 0.1
     },
     "network": {
-        "input_dims": [3,6],
+        "input_dims": [3, 6],
         "hidden_dim": 64,
         "output_dim": 3,
-        "dropout_rate": 0.5,
-        "knn_k": 3
+        "num_layers": 3,
+        "dropout_rate": 0.1,
+        "knn_k": 3,
+        "backbone": "TAGConv"
     }
 }

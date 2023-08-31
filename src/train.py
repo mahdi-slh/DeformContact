@@ -7,11 +7,14 @@ from utils.visualization import *
 from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
+from models.loss import GradientConsistencyLoss
 from tensorboardX import SummaryWriter
 import torch.nn as nn
 import datetime
 import os
 import json
+
+
 
 if __name__ == "__main__":
     config = Config()
@@ -59,9 +62,17 @@ if __name__ == "__main__":
 
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    model = GraphNet(input_dims=config.network["input_dims"], hidden_dim=config.network["hidden_dim"], output_dim=config.network["output_dim"]).to(device)
+    model = GraphNet(input_dims=config.network["input_dims"],
+                     hidden_dim=config.network["hidden_dim"],
+                     output_dim=config.network["output_dim"],
+                     num_layers=config.network["num_layers"],  # Add the num_layers parameter
+                     dropout_rate=config.network["dropout_rate"],  # Add the dropout_rate parameter
+                     knn_k=config.network["knn_k"],  # Add the knn_k parameter
+                     backbone=config.network["backbone"]).to(device)  # Add the backbone parameter
     optimizer = optim.Adam(model.parameters(), lr=config.training["learning_rate"])
-    criterion = nn.MSELoss()
+    criterion_mse = nn.MSELoss()
+    criterion_grad = GradientConsistencyLoss()
+    lambda_gradient = config.training["lambda_gradient"]
 
 
     for epoch in range(config.training["n_epochs"]):
@@ -79,9 +90,14 @@ if __name__ == "__main__":
             predictions = model(rest_graphs_batched, collider_graphs_batched)
             
             # Compute the loss
-            loss = criterion(predictions.pos, def_graphs_batched.pos)
+            loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
+            loss_consistency = criterion_grad(predictions, def_graphs_batched)
+            loss = loss_mse + lambda_gradient * loss_consistency
+
             global_step = epoch * len(dataloader_train) + batch_idx  # Compute the global step which is used for x-axis in TensorBoard
-            writer.add_scalar('Training Loss', loss.item(), global_step)
+            writer.add_scalar('Training Loss Total', loss.item(), global_step)
+            writer.add_scalar('Training Loss Consistency', loss_consistency.item(), global_step)
+            writer.add_scalar('Training Loss MSE', loss_mse.item(), global_step)
             
             # Backpropagation
             optimizer.zero_grad()
@@ -101,13 +117,15 @@ if __name__ == "__main__":
                 
                 # Forward
                 predictions = model(rest_graphs_batched, collider_graphs_batched)
-                loss_val = criterion(predictions.pos, def_graphs_batched.pos)
-                
+                loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
+                loss_consistency = criterion_grad(predictions, def_graphs_batched)
+                loss_val = loss_mse + lambda_gradient * loss_consistency
+
                 total_val_loss += loss_val.item()
         
-        print(f"Epoch {epoch+1}/{config.training['n_epochs']} - Loss: {loss.item()}")
+        print(f"Epoch {epoch+1}/{config.training['n_epochs']} - Loss: {loss_mse.item()}")
         avg_val_loss = total_val_loss / len(dataloader_val)
-        print(f"Epoch {epoch+1}/{config.training['n_epochs']} - Training Loss: {loss.item()} - Validation Loss: {avg_val_loss}")
+        print(f"Epoch {epoch+1}/{config.training['n_epochs']} - Training Loss: {loss_mse.item()} - Validation Loss: {avg_val_loss}")
         
         # Logging validation loss to tensorboard
         writer.add_scalar('Validation Loss', avg_val_loss, epoch)

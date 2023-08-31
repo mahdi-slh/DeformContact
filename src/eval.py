@@ -6,15 +6,16 @@ from utils.visualization import *
 from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
+from models.loss import GradientConsistencyLoss
 import torch.nn as nn
 import os
 import json
 
 if __name__ == "__main__":
-    log_dir = input("Enter the path of the log directory (e.g., logs/2023-08-30_14-30-45/): ")
+    log_dir = input("Enter the path of the log directory (e.g.2023-08-30_14-30-45/): ")
 
     # Load configuration from saved file
-    with open(os.path.join(log_dir, 'config.json'), 'r') as f:
+    with open(os.path.join('logs/',log_dir, 'config.json'), 'r') as f:
         saved_config = json.load(f)
     
     config = Config()  # Initialize a default config
@@ -40,11 +41,19 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # Initialize and load model
-    model = GraphNet(input_dims=config.network["input_dims"], hidden_dim=config.network["hidden_dim"], output_dim=config.network["output_dim"]).to(device)
+    model = GraphNet(input_dims=config.network["input_dims"],
+                     hidden_dim=config.network["hidden_dim"],
+                     output_dim=config.network["output_dim"],
+                     num_layers=config.network["num_layers"],  # Add the num_layers parameter
+                     dropout_rate=config.network["dropout_rate"],  # Add the dropout_rate parameter
+                     knn_k=config.network["knn_k"],  # Add the knn_k parameter
+                     backbone=config.network["backbone"]).to(device)  # Add the backbone parameter
     model.load_state_dict(torch.load(os.path.join(log_dir, 'model_weights.pth')))
     model.eval()
 
-    criterion = nn.MSELoss()
+    criterion_mse = nn.MSELoss()
+    criterion_grad = GradientConsistencyLoss()
+    lambda_gradient = config.training["lambda_gradient"]
 
     total_loss = 0.0
     with torch.no_grad():  # disable gradient computation during evaluation
@@ -57,7 +66,9 @@ if __name__ == "__main__":
             predictions = model(rest_graphs_batched, collider_graphs_batched)
 
             # Compute the loss
-            loss = criterion(predictions.pos, def_graphs_batched.pos)
+            loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
+            loss_consistency = criterion_grad(predictions, def_graphs_batched)
+            loss = loss_mse + lambda_gradient * loss_consistency
             total_loss += loss.item()
 
             # Visualization
