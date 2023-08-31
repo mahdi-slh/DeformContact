@@ -1,18 +1,15 @@
-import torch
+import os
+import numpy as np
 from torch.utils.data import Dataset
 import open3d as o3d
-import numpy as np
-import json
-import os
+
 from utils.pointcloud_utils import fps_points,construct_graph
+import torch
 from torch_geometric.data import Data
-
-
-
+import json
 
 class EverydayDeformDataset(Dataset):
-    
-    def __init__(self, root_dir, obj_list, n_points,graph_method, radius=None,k=None):
+    def __init__(self, root_dir, obj_list, n_points, graph_method, radius=None, k=None, split='train'):
         self.root_dir = root_dir
 
         # Collect all deformation samples
@@ -21,6 +18,17 @@ class EverydayDeformDataset(Dataset):
             # Exclude 'InitialMesh.ply' from the deformed meshes list
             obj_samples = [os.path.join(obj, f[:-4]) for f in os.listdir(os.path.join(root_dir, obj)) if f.endswith('.ply') and f != 'InitialMesh.ply']
             self.samples.extend(obj_samples)
+
+        # Order the samples for deterministic split
+        self.samples.sort()
+
+        # Split the dataset
+        num_samples = len(self.samples)
+        train_samples = int(0.8 * num_samples)
+        if split == 'train':
+            self.samples = self.samples[:train_samples]
+        elif split == 'val':
+            self.samples = self.samples[train_samples:]
 
         # Read 'InitialMesh.ply' once and compute FPS indices
         example_obj = obj_list[0]  # Using the first object as an example to get the path for 'InitialMesh.ply'
@@ -33,7 +41,7 @@ class EverydayDeformDataset(Dataset):
         self.k = k
         self.graph_method=graph_method
         self.sampled_indices = fps_points(self.rest_mesh_np, n_points, return_indices=True)[1]
-        self.sphere_radius = 0.25
+        self.collider_radius = 0.25
 
 
     def __len__(self):
@@ -55,16 +63,16 @@ class EverydayDeformDataset(Dataset):
         elif self.graph_method == 'radius':
             return construct_graph(mesh_tensor, radius=self.radius)
 
-    def _create_sphere_pointcloud(self, contact_point_np):
-        sphere_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=self.sphere_radius)
-        sphere_contact_mesh.translate(contact_point_np)
+    def _create_collider_pointcloud(self, contact_point_np):
+        collider_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=self.collider_radius)
+        collider_contact_mesh.translate(contact_point_np)
         pcd_contact = o3d.geometry.PointCloud()
-        pcd_contact.points = o3d.utility.Vector3dVector(np.array(sphere_contact_mesh.vertices))
-        return sphere_contact_mesh
+        pcd_contact.points = o3d.utility.Vector3dVector(np.array(collider_contact_mesh.vertices))
+        return collider_contact_mesh
 
-    def _compute_feature_vector(self, sphere_contact_mesh, vector_lineset):
-        vertices = np.asarray(sphere_contact_mesh.vertices)
-        triangles = np.asarray(sphere_contact_mesh.triangles)
+    def _compute_feature_vector(self, collider_contact_mesh, vector_lineset):
+        vertices = np.asarray(collider_contact_mesh.vertices)
+        triangles = np.asarray(collider_contact_mesh.triangles)
         vertices_t = torch.tensor(vertices, dtype=torch.float32)
 
         edge_indices = [[triangle[i], triangle[(i+1)%3]] for triangle in triangles for i in range(3)]
@@ -103,10 +111,10 @@ class EverydayDeformDataset(Dataset):
         vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
         vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
 
-        sphere_contact_mesh = self._create_sphere_pointcloud(contact_point_np)
-        sphere_graph = self._compute_feature_vector(sphere_contact_mesh, vector_lineset)
+        collider_contact_mesh = self._create_collider_pointcloud(contact_point_np)
+        collider_graph = self._compute_feature_vector(collider_contact_mesh, vector_lineset)
 
-        return obj_name, rest_graph, def_graph, meta_data, sphere_graph
+        return obj_name, rest_graph, def_graph, meta_data, collider_graph
 
         
 
