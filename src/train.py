@@ -3,7 +3,6 @@ import torch.optim as optim
 from torch.utils.data import DataLoader
 from dataloaders.everyday_deform_v2 import EverydayDeformDataset
 from torch_geometric.data import Batch
-from utils.visualization import *
 from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
@@ -14,11 +13,7 @@ import datetime
 import os
 import json
 
-
-
-if __name__ == "__main__":
-    config = Config()
-
+def train(config):
     # Create a unique directory name based on the current timestamp
     timestamp = datetime.datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
     log_dir = f'logs/{timestamp}/'
@@ -29,7 +24,6 @@ if __name__ == "__main__":
         json.dump(vars(config), f, indent=4)
     
     writer = SummaryWriter(log_dir)
-
 
     train_dataset = EverydayDeformDataset(root_dir=config.dataset["root_dir"], 
         obj_list=config.dataset["obj_list"], 
@@ -45,7 +39,6 @@ if __name__ == "__main__":
         radius=config.dataset["radius"],
         k=config.dataset["k"], split='val')
 
-
     dataloader_train = DataLoader(
         train_dataset, 
         batch_size=config.dataloader["batch_size"], 
@@ -60,7 +53,6 @@ if __name__ == "__main__":
         collate_fn=collate_fn
     )
 
-
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     model = GraphNet(input_dims=config.network["input_dims"],
                      hidden_dim=config.network["hidden_dim"],
@@ -74,11 +66,9 @@ if __name__ == "__main__":
     criterion_grad = GradientConsistencyLoss()
     lambda_gradient = config.training["lambda_gradient"]
 
-
     for epoch in range(config.training["n_epochs"]):
         model.train()
         for batch_idx, (obj_name, rest_graphs, def_graphs, meta_data, collider_graphs) in enumerate(dataloader_train):
-            # ... [The rest of the training loop remains the same]
             rest_graphs_batched = Batch.from_data_list(rest_graphs)
             collider_graphs_batched = Batch.from_data_list(collider_graphs)
             def_graphs_batched = Batch.from_data_list(def_graphs)
@@ -94,11 +84,6 @@ if __name__ == "__main__":
             loss_consistency = criterion_grad(predictions, def_graphs_batched)
             loss = loss_mse + lambda_gradient * loss_consistency
 
-            global_step = epoch * len(dataloader_train) + batch_idx  # Compute the global step which is used for x-axis in TensorBoard
-            writer.add_scalar('Training Loss Total', loss.item(), global_step)
-            writer.add_scalar('Training Loss Consistency', loss_consistency.item(), global_step)
-            writer.add_scalar('Training Loss MSE', loss_mse.item(), global_step)
-            
             # Backpropagation
             optimizer.zero_grad()
             loss.backward()
@@ -132,3 +117,8 @@ if __name__ == "__main__":
 
     torch.save(model.state_dict(), os.path.join(log_dir, 'model_weights.pth'))
     writer.close()
+    return avg_val_loss
+
+if __name__ == "__main__":
+    config = Config()
+    train(config)

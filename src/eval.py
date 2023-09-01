@@ -48,7 +48,7 @@ if __name__ == "__main__":
                      dropout_rate=config.network["dropout_rate"],  # Add the dropout_rate parameter
                      knn_k=config.network["knn_k"],  # Add the knn_k parameter
                      backbone=config.network["backbone"]).to(device)  # Add the backbone parameter
-    model.load_state_dict(torch.load(os.path.join(log_dir, 'model_weights.pth')))
+    model.load_state_dict(torch.load(os.path.join('logs',log_dir, 'model_weights.pth')))
     model.eval()
 
     criterion_mse = nn.MSELoss()

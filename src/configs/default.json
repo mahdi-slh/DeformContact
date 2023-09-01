@@ -24,7 +24,7 @@
         "shuffle": true
     },
     "training": {
-        "n_epochs": 200,
+        "n_epochs": 20,
         "learning_rate": 0.0001,
         "model_save_path": "model.pth",
         "lambda_gradient": 0.1
@@ -33,7 +33,7 @@
         "input_dims": [3, 6],
         "hidden_dim": 64,
         "output_dim": 3,
-        "num_layers": 3,
+        "num_layers": 2,
         "dropout_rate": 0.1,
         "knn_k": 3,
         "backbone": "TAGConv"
