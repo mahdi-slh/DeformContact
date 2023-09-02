@@ -91,7 +91,7 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
     geometries.extend([collider_pcd, collider_lines])
 
     if pred_graph:
-        pred_points_np = pred_graph.pos.cpu().numpy() + [2*translation, 0, 0]
+        pred_points_np = pred_graph.pos.cpu().numpy() #+ [2*translation, 0, 0]
         pred_edge_index_np = pred_graph.edge_index.t().cpu().numpy().astype(np.int32)
         
         pred_pcd = o3d.geometry.PointCloud()
@@ -105,7 +105,7 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
         geometries.extend([pred_pcd, pred_lines])
 
 
-        collider_points_np = collider_graph.clone().pos.cpu().numpy() + [2*translation, 0, 0]
+        collider_points_np = collider_graph.clone().pos.cpu().numpy() #+ [2*translation, 0, 0]
         collider_edge_index_np = collider_graph.clone().edge_index.t().cpu().numpy().astype(np.int32)
         
         collider_pcd = o3d.geometry.PointCloud()

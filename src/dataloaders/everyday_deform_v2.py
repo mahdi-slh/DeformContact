@@ -45,7 +45,7 @@ class EverydayDeformDataset(Dataset):
 
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.samples)//10
 
     def _load_deformed_mesh(self, sample_path, meta_data):
         def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
