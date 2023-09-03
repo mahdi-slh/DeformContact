@@ -6,12 +6,13 @@ from utils.visualization import *
 from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
-from models.loss import GradientConsistencyLoss
+from models.losses import GradientConsistencyLoss
 import torch.nn as nn
 import os
 import json
 import wandb
 import yaml 
+from utils.graph_utils import *
 
 if __name__ == "__main__":
     run_id = input("Enter the wandb run ID (e.g. mahdi-slh/GeoForce-src/runs/0pbafsok): ")
@@ -38,7 +39,7 @@ if __name__ == "__main__":
         n_points=config.dataset.n_points,
         graph_method=config.dataset.graph_method,
         radius=config.dataset.radius,
-        k=config.dataset.k, split='train')
+        k=config.dataset.k, split='val')
 
     dataloader_val = DataLoader(
         val_dataset, 
@@ -82,9 +83,13 @@ if __name__ == "__main__":
 
             # Visualization
             for indx in range(config.dataloader.batch_size):
+                # deformation_per_node = compute_deformation_using_diff_coords(rest_graphs[indx],  def_graphs_batched[indx])
+                # print(deformation_per_node)
 
+                visualize_deformations_intensity(rest_graphs[indx], def_graphs_batched[indx],meta_data['deform_intensity'][indx])
                 visualize_deformation_field(rest_graphs[indx].pos.cpu(), predictions[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
                 visualize_merged_graphs(rest_graphs[indx], def_graphs_batched[indx], collider_graphs[indx],predictions[indx])
+                
 
         avg_loss = total_loss / len(dataloader_val)
         print(f"Average Loss on Eval Dataset: {avg_loss}")

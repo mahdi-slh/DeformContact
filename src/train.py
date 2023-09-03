@@ -8,7 +8,7 @@ from torch_geometric.data import Batch
 from dataloaders.collate import collate_fn
 from configs.config import Config
 from models.model import GraphNet
-from models.loss import GradientConsistencyLoss
+from models.losses import GradientConsistencyLoss,DeformableDistance
 
 import wandb
 
@@ -53,6 +53,7 @@ def train(config):
     optimizer = optim.Adam(model.parameters(), lr=config.training.learning_rate)
     criterion_mse = nn.MSELoss()
     criterion_grad = GradientConsistencyLoss()
+    criterion_def = DeformableDistance()
     lambda_gradient = config.training.lambda_gradient
 
     for epoch in range(config.training.n_epochs):
@@ -62,14 +63,22 @@ def train(config):
             collider_graphs_batched = Batch.from_data_list(collider_graphs)
             def_graphs_batched = Batch.from_data_list(def_graphs)
 
+
             rest_graphs_batched, collider_graphs_batched, def_graphs_batched = rest_graphs_batched.to(device), collider_graphs_batched.to(device), def_graphs_batched.to(device)
 
             predictions = model(rest_graphs_batched, collider_graphs_batched)
 
             loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
             loss_consistency = criterion_grad(predictions, def_graphs_batched)
-            loss = loss_mse #+ lambda_gradient * loss_consistency
-            wandb.log({"mse_loss": loss_mse.item(), "consistency_loss": loss_consistency.item(),"training_loss":loss.item()})
+            loss_deformable = criterion_def(predictions, def_graphs_batched, meta_data['deform_intensity'])
+            lambda_deformable = config.training.lambda_deformable  
+            loss = loss_mse + lambda_gradient * loss_consistency + lambda_deformable * loss_deformable
+            wandb.log({
+                "mse_loss": loss_mse.item(),
+                "consistency_loss": loss_consistency.item(),
+                "deformable_loss": loss_deformable.item(),
+                "training_loss": loss.item()
+            })
 
             optimizer.zero_grad()
             loss.backward()
@@ -89,7 +98,9 @@ def train(config):
                 predictions = model(rest_graphs_batched, collider_graphs_batched)
                 loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
                 loss_consistency = criterion_grad(predictions, def_graphs_batched)
-                loss_val = loss_mse + lambda_gradient * loss_consistency
+                loss_deformable = criterion_def(predictions, def_graphs_batched, meta_data['deform_intensity'])
+                loss_val = loss_mse + lambda_gradient * loss_consistency + lambda_deformable * loss_deformable
+
 
                 total_val_loss += loss_val.item()
 
@@ -107,5 +118,5 @@ def train(config):
 
 if __name__ == "__main__":
     config = Config()
-    wandb.init()
+    wandb.init(project="GeoContact")
     train(config)

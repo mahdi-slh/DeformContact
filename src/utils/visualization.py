@@ -2,6 +2,7 @@
 
 import open3d as o3d
 import numpy as np
+from utils.graph_utils import *
 
 def visualize_deformation_field(rest_graph, def_graph, contact_point, origin_point):
     # Extract node features (points) from the graph object
@@ -91,7 +92,7 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
     geometries.extend([collider_pcd, collider_lines])
 
     if pred_graph:
-        pred_points_np = pred_graph.pos.cpu().numpy() #+ [2*translation, 0, 0]
+        pred_points_np = pred_graph.pos.cpu().numpy() + [2*translation, 0, 0]
         pred_edge_index_np = pred_graph.edge_index.t().cpu().numpy().astype(np.int32)
         
         pred_pcd = o3d.geometry.PointCloud()
@@ -105,7 +106,7 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
         geometries.extend([pred_pcd, pred_lines])
 
 
-        collider_points_np = collider_graph.clone().pos.cpu().numpy() #+ [2*translation, 0, 0]
+        collider_points_np = collider_graph.clone().pos.cpu().numpy() + [2*translation, 0, 0]
         collider_edge_index_np = collider_graph.clone().edge_index.t().cpu().numpy().astype(np.int32)
         
         collider_pcd = o3d.geometry.PointCloud()
@@ -119,6 +120,52 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
         geometries.extend([collider_pcd, collider_lines])
 
     o3d.visualization.draw_geometries(geometries)
+
+
+def map_deformation_to_color(deformation_values):
+    min_val, max_val = np.min(deformation_values), np.max(deformation_values)
+    normalized_values = (deformation_values - min_val) / (max_val - min_val)
+    
+    # Transition from white to black
+    colors = np.ones((normalized_values.shape[0], 3)) - np.expand_dims(normalized_values, axis=1)
+    
+    return colors
+
+
+def visualize_deformations_intensity(rest_graph, def_graph,deformation_intensities, translation=1.2):
+    rest_points_np = rest_graph.pos.cpu().numpy()
+    rest_edge_index_np = rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    
+    # Compute deformation values
+    deformation_values = deformation_intensities.cpu().numpy()
+    deformation_colors = map_deformation_to_color(deformation_values)
+
+    rest_pcd = o3d.geometry.PointCloud()
+    rest_pcd.points = o3d.utility.Vector3dVector(rest_points_np)
+    rest_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)
+    
+    rest_lines = o3d.geometry.LineSet()
+    rest_lines.points = o3d.utility.Vector3dVector(rest_points_np)
+    rest_lines.lines = o3d.utility.Vector2iVector(rest_edge_index_np)
+    
+    geometries = [rest_pcd, rest_lines]
+    
+    # Adding the deformed mesh visualization
+    def_points_np = def_graph.pos.cpu().numpy() + [translation, 0, 0]
+    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+
+    def_pcd = o3d.geometry.PointCloud()
+    def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
+    def_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)  # Use same deformation colors
+
+    def_lines = o3d.geometry.LineSet()
+    def_lines.points = o3d.utility.Vector3dVector(def_points_np)
+    def_lines.lines = o3d.utility.Vector2iVector(def_edge_index_np)
+
+    geometries.extend([def_pcd, def_lines])  # Add deformed mesh geometries
+
+    o3d.visualization.draw_geometries(geometries)
+
 
 def visualize_meshes(mesh1, mesh2):
     """

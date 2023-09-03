@@ -7,6 +7,7 @@ from utils.pointcloud_utils import fps_points,construct_graph
 import torch
 from torch_geometric.data import Data
 import json
+from utils.graph_utils import compute_deformation_using_diff_coords
 
 class EverydayDeformDataset(Dataset):
     def __init__(self, root_dir, obj_list, n_points, graph_method, radius=None, k=None, split='train'):
@@ -45,7 +46,7 @@ class EverydayDeformDataset(Dataset):
 
 
     def __len__(self):
-        return len(self.samples)//10
+        return len(self.samples)
 
     def _load_deformed_mesh(self, sample_path, meta_data):
         def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
@@ -105,8 +106,12 @@ class EverydayDeformDataset(Dataset):
         rest_graph = Data(x=sampled_rest_mesh_t, edge_index=rest_edge_index, pos=sampled_rest_mesh_t) 
         def_graph = Data(x=sampled_def_mesh_t, edge_index=def_edge_index, pos=sampled_def_mesh_t)
 
+        meta_data['deform_intensity'] = compute_deformation_using_diff_coords(rest_graph,def_graph)
+
+
         contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
         origin_point_np = meta_data['deformer_origin'].detach().numpy()
+
         vector_lineset = o3d.geometry.LineSet()
         vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
         vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])

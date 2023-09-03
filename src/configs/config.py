@@ -62,6 +62,7 @@ class TrainingConfig:
         self.learning_rate = 0.0001
         self.model_save_path = "model.pth"
         self.lambda_gradient = 0.1
+        self.lambda_deformable = 0.2
 
 class NetworkConfig:
     def __init__(self):
