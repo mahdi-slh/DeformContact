@@ -11,6 +11,7 @@ from models.model import GraphNet
 from models.losses import GradientConsistencyLoss,DeformableDistance
 
 import wandb
+import yaml
 
 def train(config):
 
@@ -46,7 +47,8 @@ def train(config):
     model = GraphNet(input_dims=config.network.input_dims,
                     hidden_dim=config.network.hidden_dim,
                     output_dim=config.network.output_dim,
-                    num_layers=config.network.num_layers,
+                    encoder_layers=config.network.encoder_layers,
+                    decoder_layers=config.network.decoder_layers,
                     dropout_rate=config.network.dropout_rate,
                     knn_k=config.network.knn_k,
                     backbone=config.network.backbone).to(device)
@@ -58,26 +60,26 @@ def train(config):
 
     for epoch in range(config.training.n_epochs):
         model.train()
-        for batch_idx, (obj_name, rest_graphs, def_graphs, meta_data, collider_graphs) in enumerate(dataloader_train):
-            rest_graphs_batched = Batch.from_data_list(rest_graphs)
-            collider_graphs_batched = Batch.from_data_list(collider_graphs)
-            def_graphs_batched = Batch.from_data_list(def_graphs)
+        for batch_idx, (obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graphs) in enumerate(dataloader_train):
+            soft_rest_graphs_batched = Batch.from_data_list(soft_rest_graphs)
+            rigid_graphs_batched = Batch.from_data_list(rigid_graphs)
+            soft_def_graphs_batched = Batch.from_data_list(soft_def_graphs)
 
 
-            rest_graphs_batched, collider_graphs_batched, def_graphs_batched = rest_graphs_batched.to(device), collider_graphs_batched.to(device), def_graphs_batched.to(device)
+            soft_rest_graphs_batched, rigid_graphs_batched, soft_def_graphs_batched = soft_rest_graphs_batched.to(device), rigid_graphs_batched.to(device), soft_def_graphs_batched.to(device)
 
-            predictions = model(rest_graphs_batched, collider_graphs_batched)
+            predictions = model(soft_rest_graphs_batched, rigid_graphs_batched)
 
-            loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
-            loss_consistency = criterion_grad(predictions, def_graphs_batched)
-            loss_deformable = criterion_def(predictions, def_graphs_batched, meta_data['deform_intensity'])
+            loss_mse = criterion_mse(predictions.pos, soft_def_graphs_batched.pos)
+            loss_consistency = criterion_grad(predictions, soft_def_graphs_batched)
+            loss_deformable = criterion_def(predictions, soft_def_graphs_batched, meta_data['deform_intensity'].to(device))
             lambda_deformable = config.training.lambda_deformable  
             loss = loss_mse + lambda_gradient * loss_consistency + lambda_deformable * loss_deformable
             wandb.log({
-                "mse_loss": loss_mse.item(),
-                "consistency_loss": loss_consistency.item(),
-                "deformable_loss": loss_deformable.item(),
-                "training_loss": loss.item()
+                "tr_mse_loss": loss_mse.item(),
+                "tr_consistency_loss": loss_consistency.item(),
+                "tr_deformable_loss": loss_deformable.item(),
+                "tr_loss": loss.item()
             })
 
             optimizer.zero_grad()
@@ -88,17 +90,17 @@ def train(config):
         model.eval()  
         total_val_loss = 0.0
         with torch.no_grad():  
-            for batch_idx, (obj_name, rest_graphs, def_graphs, meta_data, collider_graphs) in enumerate(dataloader_val):
-                rest_graphs_batched = Batch.from_data_list(rest_graphs)
-                collider_graphs_batched = Batch.from_data_list(collider_graphs)
-                def_graphs_batched = Batch.from_data_list(def_graphs)
+            for batch_idx, (obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graphs) in enumerate(dataloader_val):
+                soft_rest_graphs_batched = Batch.from_data_list(soft_rest_graphs)
+                rigid_graphs_batched = Batch.from_data_list(rigid_graphs)
+                soft_def_graphs_batched = Batch.from_data_list(soft_def_graphs)
 
-                rest_graphs_batched, collider_graphs_batched, def_graphs_batched = rest_graphs_batched.to(device), collider_graphs_batched.to(device), def_graphs_batched.to(device)
+                soft_rest_graphs_batched, rigid_graphs_batched, soft_def_graphs_batched = soft_rest_graphs_batched.to(device), rigid_graphs_batched.to(device), soft_def_graphs_batched.to(device)
 
-                predictions = model(rest_graphs_batched, collider_graphs_batched)
-                loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
-                loss_consistency = criterion_grad(predictions, def_graphs_batched)
-                loss_deformable = criterion_def(predictions, def_graphs_batched, meta_data['deform_intensity'])
+                predictions = model(soft_rest_graphs_batched, rigid_graphs_batched)
+                loss_mse = criterion_mse(predictions.pos, soft_def_graphs_batched.pos)
+                loss_consistency = criterion_grad(predictions, soft_def_graphs_batched)
+                loss_deformable = criterion_def(predictions, soft_def_graphs_batched, meta_data['deform_intensity'].to(device))
                 loss_val = loss_mse + lambda_gradient * loss_consistency + lambda_deformable * loss_deformable
 
 
@@ -110,10 +112,20 @@ def train(config):
         # Logging validation loss to wandb
         wandb.log({"validation_loss": avg_val_loss})
 
-    save_path = os.path.join(wandb.run.dir, 'model_weights.pth')
-    torch.save(model.state_dict(), save_path)
+        # Save the model after each epoch
+        model_save_path = os.path.join(wandb.run.dir, 'model_weights.pth')
+        config_save_path = os.path.join(wandb.run.dir, 'config.json')
 
-    wandb.save(save_path)
+        torch.save(model.state_dict(), model_save_path)
+
+        # Save the configuration file to the same directory
+        config.save(config_save_path)
+
+
+        # Save both files to the WandB run directory
+        wandb.save(model_save_path)
+        wandb.save(config_save_path)
+
     wandb.finish()
 
 if __name__ == "__main__":

@@ -9,15 +9,15 @@ from models.model import GraphNet
 from models.losses import GradientConsistencyLoss
 import torch.nn as nn
 import os
-import json
+import json  # Import the JSON module
 import wandb
-import yaml 
 from utils.graph_utils import *
 
 if __name__ == "__main__":
-    run_id = input("Enter the wandb run ID (e.g. mahdi-slh/GeoForce-src/runs/0pbafsok): ")
+    run_id = input("Enter the wandb run ID (e.g. mahdi-slh/GeoContact/runs/0pbafsok): ")
     model_path = "model_weights.pth"
-    config_path = "config.yaml"
+    config_path = "config.json"  # Change the file extension to JSON
+    
     log_dir = f'./wandb/{run_id}/logs'
     
     # Download model weights and config using wandb API
@@ -25,13 +25,11 @@ if __name__ == "__main__":
     run.file(model_path).download(replace=True, root=log_dir)
     run.file(config_path).download(replace=True, root=log_dir)
     
-    # Load configuration from saved file
+    # Load configuration from saved JSON file
     with open(os.path.join(log_dir, config_path), 'r') as f:
-        saved_config = yaml.safe_load(f)
+        saved_config = json.load(f)  # Use json.load to load the JSON file
     
-    config = Config()  # Initialize a default config
-    for key, value in saved_config.items():
-        setattr(config, key, value)  # Override with saved values
+    config = Config(saved_config)  # Initialize the config with the loaded values
 
     # Load dataset and dataloader
     val_dataset = EverydayDeformDataset(root_dir=config.dataset.root_dir, 
@@ -39,7 +37,7 @@ if __name__ == "__main__":
         n_points=config.dataset.n_points,
         graph_method=config.dataset.graph_method,
         radius=config.dataset.radius,
-        k=config.dataset.k, split='val')
+        k=config.dataset.k, split='train')
 
     dataloader_val = DataLoader(
         val_dataset, 
@@ -52,7 +50,8 @@ if __name__ == "__main__":
     model = GraphNet(input_dims=config.network.input_dims,
                     hidden_dim=config.network.hidden_dim,
                     output_dim=config.network.output_dim,
-                    num_layers=config.network.num_layers,
+                    encoder_layers=config.network.encoder_layers,
+                    decoder_layers=config.network.decoder_layers,
                     dropout_rate=config.network.dropout_rate,
                     knn_k=config.network.knn_k,
                     backbone=config.network.backbone).to(device)
@@ -67,28 +66,25 @@ if __name__ == "__main__":
 
     total_loss = 0.0
     with torch.no_grad():  # disable gradient computation during evaluation
-        for batch_idx, (obj_name, rest_graphs, def_graphs, meta_data, collider_graphs) in enumerate(dataloader_val):
-            rest_graphs_batched = Batch.from_data_list(rest_graphs).to(device)
-            collider_graphs_batched = Batch.from_data_list(collider_graphs).to(device)
-            def_graphs_batched = Batch.from_data_list(def_graphs).to(device)
+        for batch_idx, (obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graphs) in enumerate(dataloader_val):
+            soft_rest_graphs_batched = Batch.from_data_list(soft_rest_graphs).to(device)
+            rigid_graphs_batched = Batch.from_data_list(rigid_graphs).to(device)
+            soft_def_graphs_batched = Batch.from_data_list(soft_def_graphs).to(device)
 
             # Get model predictions
-            predictions = model(rest_graphs_batched, collider_graphs_batched)
+            predictions = model(soft_rest_graphs_batched, rigid_graphs_batched)
 
             # Compute the loss
-            loss_mse = criterion_mse(predictions.pos, def_graphs_batched.pos)
-            loss_consistency = criterion_grad(predictions, def_graphs_batched)
+            loss_mse = criterion_mse(predictions.pos, soft_def_graphs_batched.pos)
+            loss_consistency = criterion_grad(predictions, soft_def_graphs_batched)
             loss = loss_mse + lambda_gradient * loss_consistency
             total_loss += loss.item()
 
             # Visualization
             for indx in range(config.dataloader.batch_size):
-                # deformation_per_node = compute_deformation_using_diff_coords(rest_graphs[indx],  def_graphs_batched[indx])
-                # print(deformation_per_node)
-
-                visualize_deformations_intensity(rest_graphs[indx], def_graphs_batched[indx],meta_data['deform_intensity'][indx])
-                visualize_deformation_field(rest_graphs[indx].pos.cpu(), predictions[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
-                visualize_merged_graphs(rest_graphs[indx], def_graphs_batched[indx], collider_graphs[indx],predictions[indx])
+                visualize_deformations_intensity(soft_rest_graphs[indx], soft_def_graphs_batched[indx],meta_data['deform_intensity'][indx])
+                visualize_deformation_field(soft_rest_graphs[indx].pos.cpu(), predictions[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
+                visualize_merged_graphs(soft_rest_graphs[indx], soft_def_graphs_batched[indx], rigid_graphs[indx],predictions[indx])
                 
 
         avg_loss = total_loss / len(dataloader_val)

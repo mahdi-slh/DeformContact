@@ -1,42 +1,43 @@
 {
     "dataset": {
-        "root_dir": "datasets/everyday_deform/deformations/",
+        "root_dir": "../datasets/everyday_deform/deformations/",
         "obj_list": ["Box"],
         "n_points": 1024,
-        "radius": 0.2,
-        "k":7,
+        "radius": 0.15,
+        "k":5,
         "graph_method":"knn"
     },
     "visualization": {
-        "collider_radius_contact": 0.1,
-        "collider_radius_deform": 0.01,
+        "rigid_radius_contact": 0.1,
+        "rigid_radius_deform": 0.01,
         "colors": {
-            "contact_collider": [0, 0, 1],
-            "deform_collider": [1, 1, 0],
-            "rest_pcd": [1, 0, 0],
-            "def_pcd": [0, 1, 0],
+            "contact_rigid": [0, 0, 1],
+            "deform_rigid": [1, 1, 0],
+            "soft_rest_pcd": [1, 0, 0],
+            "soft_def_pcd": [0, 1, 0],
             "lineset": [0.5, 0.5, 0.5],
             "vector": [0, 0, 0]
         }
     },
     "dataloader": {
-        "batch_size": 4,
+        "batch_size": 8,
         "shuffle": true
     },
     "training": {
         "n_epochs": 200,
-        "learning_rate": 0.0001,
+        "learning_rate": 0.001,
         "model_save_path": "model.pth",
-        "lambda_gradient": 0.1,
-        "lambda_deformable": 0.2
+        "lambda_gradient": 1.0,
+        "lambda_deformable": 10.0
     },
     "network": {
-        "input_dims": [3, 6],
-        "hidden_dim": 64,
+        "input_dims": [21, 6],
+        "hidden_dim": 128,
         "output_dim": 3,
-        "num_layers": 2,
-        "dropout_rate": 0.1,
-        "knn_k": 3,
+        "encoder_layers":4,
+        "decoder_layers":4,
+        "dropout_rate": 0.00,
+        "knn_k": 5,
         "backbone": "TAGConv"
     }
 }

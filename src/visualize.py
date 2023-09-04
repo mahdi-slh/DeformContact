@@ -7,7 +7,7 @@ from dataloaders.collate import collate_fn
 import json
 
 if __name__ == "__main__":
-    with open("src/configs/default.json", "r") as f:
+    with open("configs/default.json", "r") as f:
         config = json.load(f)
 
     dataset_config = config["dataset"]
@@ -26,8 +26,8 @@ if __name__ == "__main__":
 
     dataloader = DataLoader(dataset, batch_size=dataloader_config["batch_size"], shuffle=dataloader_config["shuffle"], collate_fn=collate_fn)
 
-    for obj_name, rest_graphs, def_graphs, meta_data, collider_graph in dataloader:
+    for obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graph in dataloader:
 
 
-        visualize_deformation_field(rest_graphs[0].pos,def_graphs[0].pos, meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
-        visualize_merged_graphs(rest_graphs[0],def_graphs[0],collider_graph[0])
+        visualize_deformation_field(soft_rest_graphs[0].pos,soft_def_graphs[0].pos, meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
+        visualize_merged_graphs(soft_rest_graphs[0],soft_def_graphs[0],rigid_graph[0])

@@ -1,7 +1,8 @@
 /datasets/everyday_deform/object_models/*
 /datasets/everyday_deform/deformations/*
-/logs/
-/wandb/
+src/logs/*
+src/wandb/*
+/wandb/*
 
 
 # vs code

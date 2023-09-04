@@ -2,7 +2,7 @@ import torch
 
 
 def collate_fn(batch):
-    obj_names, rest_graphs, def_graphs, metas, collider_graphs = zip(*batch)
+    obj_names, soft_rest_graphs, soft_def_graphs, metas, rigid_graphs = zip(*batch)
     
     # Collate simple data
     obj_names = [name for name in obj_names]
@@ -15,4 +15,4 @@ def collate_fn(batch):
     for key in scalar_meta_keys:
         collated_meta[key] = [meta[key] for meta in metas]
 
-    return obj_names, rest_graphs, def_graphs, collated_meta, collider_graphs
+    return obj_names, soft_rest_graphs, soft_def_graphs, collated_meta, rigid_graphs

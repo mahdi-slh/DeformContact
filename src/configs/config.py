@@ -8,7 +8,7 @@ class Config:
         self.training = TrainingConfig()  # Initialize nested TrainingConfig class
         self.network = NetworkConfig()  # Initialize nested NetworkConfig class
 
-        with open('src/configs/default.json', 'r') as f:
+        with open('configs/default.json', 'r') as f:
             defaults = json.load(f)
         if defaults:
             self._load_defaults(defaults)
@@ -28,48 +28,66 @@ class Config:
                 for sub_key, sub_value in value.items():
                     if hasattr(getattr(self, key), sub_key):
                         setattr(getattr(self, key), sub_key, sub_value)
+    def save(self, file_path):
+        """
+        Save the configuration to a JSON file.
+
+        Args:
+            file_path (str): The path to the JSON file where the configuration will be saved.
+        """
+        config_dict = {
+            "dataset": self.dataset.__dict__,
+            "visualization": self.visualization.__dict__,
+            "dataloader": self.dataloader.__dict__,
+            "training": self.training.__dict__,
+            "network": self.network.__dict__
+        }
+
+        with open(file_path, 'w') as config_file:
+            json.dump(config_dict, config_file, indent=4)
 
 class DatasetConfig:
     def __init__(self):
-        self.root_dir = "datasets/everyday_deform/deformations/"
-        self.obj_list = ["Box"]
-        self.n_points = 1024
-        self.radius = 0.2
-        self.k = 7
-        self.graph_method = "knn"
+        self.root_dir = None
+        self.obj_list = None
+        self.n_points = None
+        self.radius = None
+        self.k = None
+        self.graph_method = None
 
 class VisualizationConfig:
     def __init__(self):
-        self.collider_radius_contact = 0.1
-        self.collider_radius_deform = 0.01
+        self.rigid_radius_contact = None
+        self.rigid_radius_deform = None
         self.colors = {
-            "contact_collider": [0, 0, 1],
-            "deform_collider": [1, 1, 0],
-            "rest_pcd": [1, 0, 0],
-            "def_pcd": [0, 1, 0],
+            "contact_rigid": [0, 0, 1],
+            "deform_rigid": [1, 1, 0],
+            "soft_rest_pcd": [1, 0, 0],
+            "soft_def_pcd": [0, 1, 0],
             "lineset": [0.5, 0.5, 0.5],
             "vector": [0, 0, 0]
         }
 
 class DataLoaderConfig:
     def __init__(self):
-        self.batch_size = 4
-        self.shuffle = True
+        self.batch_size = None
+        self.shuffle = None
 
 class TrainingConfig:
     def __init__(self):
-        self.n_epochs = 20
-        self.learning_rate = 0.0001
-        self.model_save_path = "model.pth"
-        self.lambda_gradient = 0.1
-        self.lambda_deformable = 0.2
+        self.n_epochs = None
+        self.learning_rate = None
+        self.model_save_path =None
+        self.lambda_gradient = None
+        self.lambda_deformable = None
 
 class NetworkConfig:
     def __init__(self):
-        self.input_dims = [3, 6]
-        self.hidden_dim = 64
-        self.output_dim = 3
-        self.num_layers = 2
-        self.dropout_rate = 0.1
-        self.knn_k = 3
-        self.backbone = "TAGConv"
+        self.input_dims = []
+        self.hidden_dim = None
+        self.output_dim = None
+        self.encoder_layers = None
+        self.decoder_layers = None
+        self.dropout_rate = None
+        self.knn_k = None
+        self.backbone = None

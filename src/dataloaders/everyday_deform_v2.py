@@ -8,6 +8,7 @@ import torch
 from torch_geometric.data import Data
 import json
 from utils.graph_utils import compute_deformation_using_diff_coords
+from utils.pos_encoding import to_log_freq
 
 class EverydayDeformDataset(Dataset):
     def __init__(self, root_dir, obj_list, n_points, graph_method, radius=None, k=None, split='train'):
@@ -33,30 +34,30 @@ class EverydayDeformDataset(Dataset):
 
         # Read 'InitialMesh.ply' once and compute FPS indices
         example_obj = obj_list[0]  # Using the first object as an example to get the path for 'InitialMesh.ply'
-        rest_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, example_obj, 'InitialMesh.ply'))
-        self.rest_mesh_np = np.asarray(rest_mesh.vertices)
+        soft_rest_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, example_obj, 'InitialMesh.ply'))
+        self.soft_rest_mesh_np = np.asarray(soft_rest_mesh.vertices)
 
         # Sample indices using FPS
         self.n_points = n_points
         self.radius = radius
         self.k = k
         self.graph_method=graph_method
-        self.sampled_indices = fps_points(self.rest_mesh_np, n_points, return_indices=True)[1]
-        self.collider_radius = 0.25
+        self.sampled_indices = fps_points(self.soft_rest_mesh_np, n_points, return_indices=True)[1]
+        self.rigid_radius = 0.25
 
 
     def __len__(self):
-        return len(self.samples)
+        return len(self.samples)//10
 
     def _load_deformed_mesh(self, sample_path, meta_data):
-        def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
-        def_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
-        return np.asarray(def_mesh.vertices)
+        soft_def_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, sample_path + ".ply"))
+        soft_def_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
+        return np.asarray(soft_def_mesh.vertices)
 
-    def _sample_points(self, def_mesh_np):
-        sampled_rest_mesh_np = self.rest_mesh_np[self.sampled_indices]
-        sampled_def_mesh_np = def_mesh_np[self.sampled_indices]
-        return torch.tensor(sampled_rest_mesh_np, dtype=torch.float32), torch.tensor(sampled_def_mesh_np, dtype=torch.float32)
+    def _sample_points(self, soft_def_mesh_np):
+        sampled_soft_rest_mesh_np = self.soft_rest_mesh_np[self.sampled_indices]
+        sampled_soft_def_mesh_np = soft_def_mesh_np[self.sampled_indices]
+        return torch.tensor(sampled_soft_rest_mesh_np, dtype=torch.float32), torch.tensor(sampled_soft_def_mesh_np, dtype=torch.float32)
 
     def _construct_graph(self, mesh_tensor):
         if self.graph_method == 'knn':
@@ -64,16 +65,16 @@ class EverydayDeformDataset(Dataset):
         elif self.graph_method == 'radius':
             return construct_graph(mesh_tensor, radius=self.radius)
 
-    def _create_collider_pointcloud(self, contact_point_np):
-        collider_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=self.collider_radius)
-        collider_contact_mesh.translate(contact_point_np)
+    def _create_rigid_pointcloud(self, contact_point_np):
+        rigid_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=self.rigid_radius)
+        rigid_contact_mesh.translate(contact_point_np)
         pcd_contact = o3d.geometry.PointCloud()
-        pcd_contact.points = o3d.utility.Vector3dVector(np.array(collider_contact_mesh.vertices))
-        return collider_contact_mesh
+        pcd_contact.points = o3d.utility.Vector3dVector(np.array(rigid_contact_mesh.vertices))
+        return rigid_contact_mesh
 
-    def _compute_feature_vector(self, collider_contact_mesh, vector_lineset):
-        vertices = np.asarray(collider_contact_mesh.vertices)
-        triangles = np.asarray(collider_contact_mesh.triangles)
+    def _feature_rigid(self, rigid_contact_mesh, vector_lineset):
+        vertices = np.asarray(rigid_contact_mesh.vertices)
+        triangles = np.asarray(rigid_contact_mesh.triangles)
         vertices_t = torch.tensor(vertices, dtype=torch.float32)
 
         edge_indices = [[triangle[i], triangle[(i+1)%3]] for triangle in triangles for i in range(3)]
@@ -87,26 +88,35 @@ class EverydayDeformDataset(Dataset):
         features = torch.cat([vertices_t, vector_broadcasted], dim=1)
         
         return Data(x=features, edge_index=edge_indices_t, pos=vertices_t)
+    
+    def _feature_pos_enc(self, soft_contact_mesh):
+        features = to_log_freq(soft_contact_mesh, 3, 1)
+        
+        return features
 
     def __getitem__(self, idx):
         sample_path = self.samples[idx]
         obj_name = os.path.basename(os.path.dirname(sample_path))
 
         meta_data = self._read_meta_data(sample_path)
-        def_mesh_np = self._load_deformed_mesh(sample_path, meta_data)
+        
+        soft_def_mesh_np = self._load_deformed_mesh(sample_path, meta_data)-meta_data['object_rigid_pos'].numpy()
+        
 
-        sampled_rest_mesh_t, sampled_def_mesh_t = self._sample_points(def_mesh_np)
+        sampled_soft_rest_mesh_t, sampled_soft_def_mesh_t = self._sample_points(soft_def_mesh_np)
         if self.graph_method =='knn':
-            rest_edge_index = construct_graph(sampled_rest_mesh_t,k=self.k)
+            soft_rest_edge_index = construct_graph(sampled_soft_rest_mesh_t,k=self.k)
         elif self.graph_method =='radius':
-            rest_edge_index = construct_graph(sampled_rest_mesh_t,radius=self.radius)
+            soft_rest_edge_index = construct_graph(sampled_soft_rest_mesh_t,radius=self.radius)
+        
+        feat_soft_rest_mesh_t = self._feature_pos_enc(sampled_soft_rest_mesh_t)
 
-        def_edge_index = rest_edge_index.clone()
+        soft_def_edge_index = soft_rest_edge_index.clone()
 
-        rest_graph = Data(x=sampled_rest_mesh_t, edge_index=rest_edge_index, pos=sampled_rest_mesh_t) 
-        def_graph = Data(x=sampled_def_mesh_t, edge_index=def_edge_index, pos=sampled_def_mesh_t)
+        soft_rest_graph = Data(x=feat_soft_rest_mesh_t, edge_index=soft_rest_edge_index, pos=sampled_soft_rest_mesh_t) 
+        soft_def_graph = Data(x=sampled_soft_def_mesh_t, edge_index=soft_def_edge_index, pos=sampled_soft_def_mesh_t)
 
-        meta_data['deform_intensity'] = compute_deformation_using_diff_coords(rest_graph,def_graph)
+        meta_data['deform_intensity'] = compute_deformation_using_diff_coords(soft_rest_graph,soft_def_graph)
 
 
         contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
@@ -116,10 +126,11 @@ class EverydayDeformDataset(Dataset):
         vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
         vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
 
-        collider_contact_mesh = self._create_collider_pointcloud(contact_point_np)
-        collider_graph = self._compute_feature_vector(collider_contact_mesh, vector_lineset)
+        rigid_contact_mesh = self._create_rigid_pointcloud(contact_point_np)
+        rigid_contact_mesh.translate(-meta_data['object_rigid_pos'].numpy())
+        rigid_graph = self._feature_rigid(rigid_contact_mesh, vector_lineset)
 
-        return obj_name, rest_graph, def_graph, meta_data, collider_graph
+        return obj_name, soft_rest_graph, soft_def_graph, meta_data, rigid_graph
 
         
 

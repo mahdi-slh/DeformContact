@@ -4,33 +4,33 @@ import open3d as o3d
 import numpy as np
 from utils.graph_utils import *
 
-def visualize_deformation_field(rest_graph, def_graph, contact_point, origin_point):
+def visualize_deformation_field(soft_rest_graph, soft_def_graph, contact_point, origin_point):
     # Extract node features (points) from the graph object
-    rest_mesh_np = rest_graph.detach().numpy()
-    def_mesh_np = def_graph.detach().numpy()
+    soft_rest_mesh_np = soft_rest_graph.detach().numpy()
+    soft_def_mesh_np = soft_def_graph.detach().numpy()
     contact_point_np = contact_point.detach().numpy()
     origin_point_np = origin_point.detach().numpy()
 
     # Calculate deformation magnitudes and find the point with the maximum deformation
-    deformation_magnitudes = np.linalg.norm(def_mesh_np - rest_mesh_np, axis=1)
+    deformation_magnitudes = np.linalg.norm(soft_def_mesh_np - soft_rest_mesh_np, axis=1)
     max_deformation_index = np.argmax(deformation_magnitudes)
-    max_deformation_point = rest_mesh_np[max_deformation_index]
+    max_deformation_point = soft_rest_mesh_np[max_deformation_index]
 
     pcd_rest = o3d.geometry.PointCloud()
     pcd_def = o3d.geometry.PointCloud()
-    pcd_rest.points = o3d.utility.Vector3dVector(rest_mesh_np)
-    pcd_def.points = o3d.utility.Vector3dVector(def_mesh_np)
+    pcd_rest.points = o3d.utility.Vector3dVector(soft_rest_mesh_np)
+    pcd_def.points = o3d.utility.Vector3dVector(soft_def_mesh_np)
 
     lineset = o3d.geometry.LineSet()
-    lineset.points = o3d.utility.Vector3dVector(np.concatenate((rest_mesh_np, def_mesh_np)))
-    n = len(rest_mesh_np)
+    lineset.points = o3d.utility.Vector3dVector(np.concatenate((soft_rest_mesh_np, soft_def_mesh_np)))
+    n = len(soft_rest_mesh_np)
     lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
 
-    # Create colliders as point clouds by converting the vertices of the triangle meshes to point clouds
-    collider_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
-    collider_contact_mesh.translate(contact_point_np)
+    # Create rigids as point clouds by converting the vertices of the triangle meshes to point clouds
+    rigid_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
+    rigid_contact_mesh.translate(contact_point_np)
     pcd_contact = o3d.geometry.PointCloud()
-    pcd_contact.points = o3d.utility.Vector3dVector(np.array(collider_contact_mesh.vertices))
+    pcd_contact.points = o3d.utility.Vector3dVector(np.array(rigid_contact_mesh.vertices))
     pcd_contact.paint_uniform_color([0, 0, 1])  # Blue
 
     # Create the vector from the origin to the contact point
@@ -49,47 +49,47 @@ def visualize_deformation_field(rest_graph, def_graph, contact_point, origin_poi
 
 
 
-def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pred_graph=None, translation=1.2):
-    rest_points_np = rest_graph.pos.cpu().numpy()
-    rest_edge_index_np = rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
+def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=None, pred_graph=None, translation=1.2):
+    soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
+    soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
-    rest_pcd = o3d.geometry.PointCloud()
-    rest_pcd.points = o3d.utility.Vector3dVector(rest_points_np)
-    rest_pcd.paint_uniform_color([0, 0.8, 0])  # Green for rest mesh
+    soft_rest_pcd = o3d.geometry.PointCloud()
+    soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
+    soft_rest_pcd.paint_uniform_color([0, 0.8, 0])  # Green for rest mesh
 
-    rest_lines = o3d.geometry.LineSet()
-    rest_lines.points = o3d.utility.Vector3dVector(rest_points_np)
-    rest_lines.lines = o3d.utility.Vector2iVector(rest_edge_index_np)
+    soft_rest_lines = o3d.geometry.LineSet()
+    soft_rest_lines.points = o3d.utility.Vector3dVector(soft_rest_points_np)
+    soft_rest_lines.lines = o3d.utility.Vector2iVector(soft_rest_edge_index_np)
 
-    geometries = [rest_pcd, rest_lines]
+    geometries = [soft_rest_pcd, soft_rest_lines]
 
 
-    def_points_np = def_graph.pos.cpu().numpy() + [translation, 0, 0]
-    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
+    soft_def_edge_index_np = soft_def_graph.edge_index.t().cpu().numpy().astype(np.int32)
     
-    def_pcd = o3d.geometry.PointCloud()
-    def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
-    def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Yellow for deformed mesh
+    soft_def_pcd = o3d.geometry.PointCloud()
+    soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
+    soft_def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Yellow for deformed mesh
     
-    def_lines = o3d.geometry.LineSet()
-    def_lines.points = o3d.utility.Vector3dVector(def_points_np)
-    def_lines.lines = o3d.utility.Vector2iVector(def_edge_index_np)
+    soft_def_lines = o3d.geometry.LineSet()
+    soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
+    soft_def_lines.lines = o3d.utility.Vector2iVector(soft_def_edge_index_np)
     
-    geometries.extend([def_pcd, def_lines])
+    geometries.extend([soft_def_pcd, soft_def_lines])
 
 
-    collider_points_np = collider_graph.pos.cpu().numpy() + [translation, 0, 0]
-    collider_edge_index_np = collider_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    rigid_points_np = rigid_graph.pos.cpu().numpy() + [translation, 0, 0]
+    rigid_edge_index_np = rigid_graph.edge_index.t().cpu().numpy().astype(np.int32)
     
-    collider_pcd = o3d.geometry.PointCloud()
-    collider_pcd.points = o3d.utility.Vector3dVector(collider_points_np)
-    collider_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
+    rigid_pcd = o3d.geometry.PointCloud()
+    rigid_pcd.points = o3d.utility.Vector3dVector(rigid_points_np)
+    rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the rigid mesh
     
-    collider_lines = o3d.geometry.LineSet()
-    collider_lines.points = o3d.utility.Vector3dVector(collider_points_np)
-    collider_lines.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
+    rigid_lines = o3d.geometry.LineSet()
+    rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
+    rigid_lines.lines = o3d.utility.Vector2iVector(rigid_edge_index_np)
     
-    geometries.extend([collider_pcd, collider_lines])
+    geometries.extend([rigid_pcd, rigid_lines])
 
     if pred_graph:
         pred_points_np = pred_graph.pos.cpu().numpy() + [2*translation, 0, 0]
@@ -106,18 +106,18 @@ def visualize_merged_graphs(rest_graph, def_graph=None, collider_graph=None, pre
         geometries.extend([pred_pcd, pred_lines])
 
 
-        collider_points_np = collider_graph.clone().pos.cpu().numpy() + [2*translation, 0, 0]
-        collider_edge_index_np = collider_graph.clone().edge_index.t().cpu().numpy().astype(np.int32)
+        rigid_points_np = rigid_graph.clone().pos.cpu().numpy() + [2*translation, 0, 0]
+        rigid_edge_index_np = rigid_graph.clone().edge_index.t().cpu().numpy().astype(np.int32)
         
-        collider_pcd = o3d.geometry.PointCloud()
-        collider_pcd.points = o3d.utility.Vector3dVector(collider_points_np)
-        collider_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the collider mesh
+        rigid_pcd = o3d.geometry.PointCloud()
+        rigid_pcd.points = o3d.utility.Vector3dVector(rigid_points_np)
+        rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the rigid mesh
         
-        collider_lines = o3d.geometry.LineSet()
-        collider_lines.points = o3d.utility.Vector3dVector(collider_points_np)
-        collider_lines.lines = o3d.utility.Vector2iVector(collider_edge_index_np)
+        rigid_lines = o3d.geometry.LineSet()
+        rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
+        rigid_lines.lines = o3d.utility.Vector2iVector(rigid_edge_index_np)
         
-        geometries.extend([collider_pcd, collider_lines])
+        geometries.extend([rigid_pcd, rigid_lines])
 
     o3d.visualization.draw_geometries(geometries)
 
@@ -132,37 +132,37 @@ def map_deformation_to_color(deformation_values):
     return colors
 
 
-def visualize_deformations_intensity(rest_graph, def_graph,deformation_intensities, translation=1.2):
-    rest_points_np = rest_graph.pos.cpu().numpy()
-    rest_edge_index_np = rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
+def visualize_deformations_intensity(soft_rest_graph, soft_def_graph,deformation_intensities, translation=1.2):
+    soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
+    soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
     
     # Compute deformation values
     deformation_values = deformation_intensities.cpu().numpy()
     deformation_colors = map_deformation_to_color(deformation_values)
 
-    rest_pcd = o3d.geometry.PointCloud()
-    rest_pcd.points = o3d.utility.Vector3dVector(rest_points_np)
-    rest_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)
+    soft_rest_pcd = o3d.geometry.PointCloud()
+    soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
+    soft_rest_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)
     
-    rest_lines = o3d.geometry.LineSet()
-    rest_lines.points = o3d.utility.Vector3dVector(rest_points_np)
-    rest_lines.lines = o3d.utility.Vector2iVector(rest_edge_index_np)
+    soft_rest_lines = o3d.geometry.LineSet()
+    soft_rest_lines.points = o3d.utility.Vector3dVector(soft_rest_points_np)
+    soft_rest_lines.lines = o3d.utility.Vector2iVector(soft_rest_edge_index_np)
     
-    geometries = [rest_pcd, rest_lines]
+    geometries = [soft_rest_pcd, soft_rest_lines]
     
     # Adding the deformed mesh visualization
-    def_points_np = def_graph.pos.cpu().numpy() + [translation, 0, 0]
-    def_edge_index_np = def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
+    soft_def_edge_index_np = soft_def_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
-    def_pcd = o3d.geometry.PointCloud()
-    def_pcd.points = o3d.utility.Vector3dVector(def_points_np)
-    def_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)  # Use same deformation colors
+    soft_def_pcd = o3d.geometry.PointCloud()
+    soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
+    soft_def_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)  # Use same deformation colors
 
-    def_lines = o3d.geometry.LineSet()
-    def_lines.points = o3d.utility.Vector3dVector(def_points_np)
-    def_lines.lines = o3d.utility.Vector2iVector(def_edge_index_np)
+    soft_def_lines = o3d.geometry.LineSet()
+    soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
+    soft_def_lines.lines = o3d.utility.Vector2iVector(soft_def_edge_index_np)
 
-    geometries.extend([def_pcd, def_lines])  # Add deformed mesh geometries
+    geometries.extend([soft_def_pcd, soft_def_lines])  # Add deformed mesh geometries
 
     o3d.visualization.draw_geometries(geometries)
 

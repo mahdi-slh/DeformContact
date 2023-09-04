@@ -10,7 +10,7 @@ sweep_config = {
         'goal': 'minimize'  # or 'maximize' depending on your needs
     },
     "parameters": {
-        # "num_layers": {"values": [2, 3]},
+        # "encoder_layers": {"values": [2, 3]},
         "hidden_dim": {"values": [128, 256]},
         "dropout_rate": {
             "distribution": "uniform", 
@@ -38,7 +38,7 @@ def train_sweep():
     run = wandb.init()
     # wandb.init(project="GeoContact")  # Initialize wandb
     config = Config()  # Initialize your Config object
-    # config.network.num_layers = run.config["num_layers"]
+    # config.network.encoder_layers = run.config["encoder_layers"]
     config.network.hidden_dim = run.config["hidden_dim"]
     config.network.dropout_rate = run.config["dropout_rate"]
     config.network.knn_k = run.config["knn_k"]
