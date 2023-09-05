@@ -1,5 +1,5 @@
 from torch.utils.data import DataLoader
-from dataloaders.everyday_deform_v2 import EverydayDeformDataset
+from dataloaders.everyday_deform import EverydayDeformDataset
 from utils.visualization import *
 from dataloaders.collate import collate_fn
 
@@ -29,5 +29,5 @@ if __name__ == "__main__":
     for obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graph in dataloader:
 
 
-        visualize_deformation_field(soft_rest_graphs[0].pos,soft_def_graphs[0].pos, meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
+        visualize_deformation_field(soft_rest_graphs[0].pos,soft_def_graphs[0].pos,rigid_graph[0].pos, meta_data['deformer_collision_position'][0], meta_data['deformer_origin'][0])
         visualize_merged_graphs(soft_rest_graphs[0],soft_def_graphs[0],rigid_graph[0])

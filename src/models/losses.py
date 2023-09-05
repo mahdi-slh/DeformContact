@@ -33,12 +33,12 @@ class DeformableDistance(nn.Module):
         normalized_intensity = (deform_intensity - min_int) / (max_int - min_int + 1e-9)
         
         # Add a small constant to ensure every region still has some influence
-        weights = normalized_intensity + 0.01
+        weights = normalized_intensity + 0.001
         
         # Weight the node differences by the normalized deformation intensity
         weighted_diffs = node_diffs * weights.view(node_diffs.shape)
         
-        # Compute the average loss across all nodes
-        loss = weighted_diffs.sum() / len(soft_rest_graphs_batched.pos)
+        # Compute the average loss across all nodes based on the sum of weights
+        loss = weighted_diffs.sum() / weights.sum()
         
         return loss

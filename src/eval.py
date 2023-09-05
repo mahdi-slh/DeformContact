@@ -1,6 +1,6 @@
 import torch
 from torch.utils.data import DataLoader
-from dataloaders.everyday_deform_v2 import EverydayDeformDataset
+from dataloaders.everyday_deform import EverydayDeformDataset
 from torch_geometric.data import Batch
 from utils.visualization import *
 from dataloaders.collate import collate_fn
@@ -83,7 +83,7 @@ if __name__ == "__main__":
             # Visualization
             for indx in range(config.dataloader.batch_size):
                 visualize_deformations_intensity(soft_rest_graphs[indx], soft_def_graphs_batched[indx],meta_data['deform_intensity'][indx])
-                visualize_deformation_field(soft_rest_graphs[indx].pos.cpu(), predictions[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
+                visualize_deformation_field(soft_rest_graphs[indx].pos.cpu(), predictions[indx].pos.cpu(),rigid_graphs[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
                 visualize_merged_graphs(soft_rest_graphs[indx], soft_def_graphs_batched[indx], rigid_graphs[indx],predictions[indx])
                 
 

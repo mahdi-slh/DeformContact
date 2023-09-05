@@ -2,7 +2,7 @@
     "dataset": {
         "root_dir": "../datasets/everyday_deform/deformations/",
         "obj_list": ["Box"],
-        "n_points": 1024,
+        "n_points": 4096,
         "radius": 0.15,
         "k":5,
         "graph_method":"knn"
@@ -20,19 +20,19 @@
         }
     },
     "dataloader": {
-        "batch_size": 8,
+        "batch_size": 4,
         "shuffle": true
     },
     "training": {
-        "n_epochs": 200,
-        "learning_rate": 0.001,
+        "n_epochs": 2000,
+        "learning_rate": 0.0004,
         "model_save_path": "model.pth",
         "lambda_gradient": 1.0,
-        "lambda_deformable": 10.0
+        "lambda_deformable": 1.0
     },
     "network": {
-        "input_dims": [21, 6],
-        "hidden_dim": 128,
+        "input_dims": [21, 24],
+        "hidden_dim": 64,
         "output_dim": 3,
         "encoder_layers":4,
         "decoder_layers":4,

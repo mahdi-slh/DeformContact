@@ -3,7 +3,7 @@ import os
 import torch.optim as optim
 import torch.nn as nn
 from torch.utils.data import DataLoader
-from dataloaders.everyday_deform_v2 import EverydayDeformDataset
+from dataloaders.everyday_deform import EverydayDeformDataset
 from torch_geometric.data import Batch
 from dataloaders.collate import collate_fn
 from configs.config import Config
@@ -59,6 +59,7 @@ def train(config):
     lambda_gradient = config.training.lambda_gradient
 
     for epoch in range(config.training.n_epochs):
+        total_tr_loss = 0
         model.train()
         for batch_idx, (obj_name, soft_rest_graphs, soft_def_graphs, meta_data, rigid_graphs) in enumerate(dataloader_train):
             soft_rest_graphs_batched = Batch.from_data_list(soft_rest_graphs)
@@ -69,21 +70,27 @@ def train(config):
             soft_rest_graphs_batched, rigid_graphs_batched, soft_def_graphs_batched = soft_rest_graphs_batched.to(device), rigid_graphs_batched.to(device), soft_def_graphs_batched.to(device)
 
             predictions = model(soft_rest_graphs_batched, rigid_graphs_batched)
+            predictions.pos = predictions.pos  - soft_rest_graphs_batched.pos
+            soft_def_graphs_batched.pos = soft_def_graphs_batched.pos  - soft_rest_graphs_batched.pos
 
             loss_mse = criterion_mse(predictions.pos, soft_def_graphs_batched.pos)
             loss_consistency = criterion_grad(predictions, soft_def_graphs_batched)
             loss_deformable = criterion_def(predictions, soft_def_graphs_batched, meta_data['deform_intensity'].to(device))
             lambda_deformable = config.training.lambda_deformable  
-            loss = loss_mse + lambda_gradient * loss_consistency + lambda_deformable * loss_deformable
+            tr_loss = loss_mse# + lambda_gradient * loss_consistency #+lambda_deformable * loss_deformable
+            # if epoch<50:
+            #     tr_loss = loss_mse + lambda_gradient * loss_consistency
+            # else:
+            #     tr_loss = loss_deformable	
             wandb.log({
                 "tr_mse_loss": loss_mse.item(),
                 "tr_consistency_loss": loss_consistency.item(),
                 "tr_deformable_loss": loss_deformable.item(),
-                "tr_loss": loss.item()
+                "tr_loss": tr_loss.item()
             })
-
+            total_tr_loss += tr_loss.item()
             optimizer.zero_grad()
-            loss.backward()
+            tr_loss.backward()
             optimizer.step()
 
         # Validation loop
@@ -107,7 +114,8 @@ def train(config):
                 total_val_loss += loss_val.item()
 
         avg_val_loss = total_val_loss / len(dataloader_val)
-        print(f"Epoch {epoch+1}/{config.training.n_epochs} - Training Loss: {loss_mse.item()} - Validation Loss: {avg_val_loss}")
+        avg_tr_loss = total_tr_loss / len(dataloader_train)
+        print(f"Epoch {epoch+1}/{config.training.n_epochs} - Training Loss: {avg_tr_loss} - Validation Loss: {avg_val_loss}")
         
         # Logging validation loss to wandb
         wandb.log({"validation_loss": avg_val_loss})

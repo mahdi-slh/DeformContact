@@ -4,10 +4,11 @@ import open3d as o3d
 import numpy as np
 from utils.graph_utils import *
 
-def visualize_deformation_field(soft_rest_graph, soft_def_graph, contact_point, origin_point):
+def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, contact_point, origin_point):
     # Extract node features (points) from the graph object
     soft_rest_mesh_np = soft_rest_graph.detach().numpy()
     soft_def_mesh_np = soft_def_graph.detach().numpy()
+    rigid_graph_np = rigid_graph.detach().numpy()
     contact_point_np = contact_point.detach().numpy()
     origin_point_np = origin_point.detach().numpy()
 
@@ -18,34 +19,44 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph, contact_point, 
 
     pcd_rest = o3d.geometry.PointCloud()
     pcd_def = o3d.geometry.PointCloud()
+    pcd_rigid = o3d.geometry.PointCloud()
     pcd_rest.points = o3d.utility.Vector3dVector(soft_rest_mesh_np)
     pcd_def.points = o3d.utility.Vector3dVector(soft_def_mesh_np)
+    pcd_rigid.points = o3d.utility.Vector3dVector(rigid_graph_np)
 
     lineset = o3d.geometry.LineSet()
     lineset.points = o3d.utility.Vector3dVector(np.concatenate((soft_rest_mesh_np, soft_def_mesh_np)))
     n = len(soft_rest_mesh_np)
     lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
 
-    # Create rigids as point clouds by converting the vertices of the triangle meshes to point clouds
-    rigid_contact_mesh = o3d.geometry.TriangleMesh.create_sphere(radius=0.25)
-    rigid_contact_mesh.translate(contact_point_np)
-    pcd_contact = o3d.geometry.PointCloud()
-    pcd_contact.points = o3d.utility.Vector3dVector(np.array(rigid_contact_mesh.vertices))
-    pcd_contact.paint_uniform_color([0, 0, 1])  # Blue
+    # Calculate small vectors from each vertex of the rigid point cloud
+    direction = origin_point_np - contact_point_np
+    direction /= np.linalg.norm(direction)
+    scaled_direction = direction * 0.1  # Change 0.1 to adjust the length of small vectors
 
-    # Create the vector from the origin to the contact point
+    start_points = rigid_graph_np
+    end_points = rigid_graph_np + scaled_direction
     vector_lineset = o3d.geometry.LineSet()
-    vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
-    vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
-    vector_lineset.colors = o3d.utility.Vector3dVector([[0, 0, 0]])  # Black color for the vector, adjust as necessary
+    vector_lineset.points = o3d.utility.Vector3dVector(np.vstack([start_points, end_points]))
+    n_rigid = len(start_points)
+    vector_lineset.lines = o3d.utility.Vector2iVector([(i, i + n_rigid) for i in range(n_rigid)])
+    vector_lineset.colors = o3d.utility.Vector3dVector([[0.5, 0, 0] for _ in range(n_rigid)])
 
+    lineset = o3d.geometry.LineSet()
+    lineset.points = o3d.utility.Vector3dVector(np.concatenate((soft_rest_mesh_np, soft_def_mesh_np)))
+    n = len(soft_rest_mesh_np)
+    lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
+    lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
+    
+    
+    pcd_rigid.paint_uniform_color([0.8, 0, 0.0])  # Blue
     pcd_rest.paint_uniform_color([0, 0.8, 0])
     pcd_def.paint_uniform_color([0.8, 0.8, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
 
     coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
     print(contact_point_np, max_deformation_point)
-    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_contact, coor, vector_lineset])
+    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_rigid, coor, vector_lineset])
 
 
 

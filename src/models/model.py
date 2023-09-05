@@ -2,10 +2,28 @@ import torch.nn as nn
 from torch_geometric.nn import GATConv, GCNConv, TAGConv, knn
 import torch
 import torch.nn.functional as F
-from torch_scatter import scatter_mean
+from torch_scatter import scatter_mean,scatter_max
 
+
+class MultiHeadAttention(nn.Module):
+    def __init__(self, feature_dim, num_heads=8):
+        super(MultiHeadAttention, self).__init__()
+        self.num_heads = num_heads
+        self.attention_heads = nn.ModuleList([nn.Linear(feature_dim, feature_dim) for _ in range(num_heads)])
+        
+    def forward(self, x_resting, x_rigid):
+        outputs = []
+        for head in self.attention_heads:
+            scores = torch.mm(head(x_resting), head(x_rigid).transpose(0, 1))
+            attn_weights = F.softmax(scores, dim=-1)
+            output = torch.mm(attn_weights, x_rigid)
+            outputs.append(output)
+        
+        # Concatenate outputs from all attention heads
+        return torch.cat(outputs, dim=-1)
+    
 class GraphNet(nn.Module):
-    def __init__(self, input_dims, hidden_dim, output_dim, encoder_layers, decoder_layers, dropout_rate, knn_k, backbone):
+    def __init__(self, input_dims, hidden_dim, output_dim, encoder_layers, decoder_layers, dropout_rate, knn_k, backbone, num_heads=4):
         super(GraphNet, self).__init__()
 
         self.encoder_layers = encoder_layers
@@ -38,7 +56,7 @@ class GraphNet(nn.Module):
 
         # Decoder
         decoder = []
-        input_dim_decoder = hidden_dim * 2
+        input_dim_decoder = hidden_dim * (num_heads+1)
         for _ in range(self.decoder_layers):
             decoder.append(nn.Linear(input_dim_decoder, hidden_dim))
             # decoder.append(nn.BatchNorm1d(hidden_dim))  # Add BatchNorm
@@ -47,6 +65,7 @@ class GraphNet(nn.Module):
             input_dim_decoder = hidden_dim
         decoder.append(nn.Linear(hidden_dim, output_dim))
         self.decoder = nn.Sequential(*decoder)
+        self.multihead_attention = MultiHeadAttention(hidden_dim, num_heads=num_heads)
 
     def forward(self, graph_resting, graph_rigid):
         # For resting graph
@@ -66,17 +85,21 @@ class GraphNet(nn.Module):
         col, row = edge_index
 
         # Use scatter_mean for aggregation of features
-        pooled_features = scatter_mean(x_rigid[col], row, dim=0, dim_size=x_resting.size(0))
+        # pooled_features = scatter_mean(x_rigid[col], row, dim=0, dim_size=x_resting.size(0))
+        pooled_features = self.multihead_attention(x_resting, x_rigid)
+
 
         # Concatenate original x_resting features with pooled features from x_rigid
+        # x_combined = torch.cat([x_resting, pooled_features], dim=-1)
         x_combined = torch.cat([x_resting, pooled_features], dim=-1)
+
 
         # Pass through the decoder to get the deformed positions
         x_out = self.decoder(x_combined)
 
         # Building a graph with deformed positions
         deformed_graph = graph_resting.clone()
-        deformed_graph.pos += x_out
+        deformed_graph.pos = x_out
 
         return deformed_graph
 
