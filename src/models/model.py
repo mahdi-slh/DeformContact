@@ -60,7 +60,7 @@ class GraphNet(nn.Module):
         for _ in range(self.decoder_layers):
             decoder.append(nn.Linear(input_dim_decoder, hidden_dim))
             # decoder.append(nn.BatchNorm1d(hidden_dim))  # Add BatchNorm
-            # decoder.append(nn.Sigmoid())  # Add activation function (e.g., ReLU)
+            decoder.append(nn.ReLU())  # Add activation function (e.g., ReLU)
             decoder.append(nn.Dropout(self.dropout_rate))
             input_dim_decoder = hidden_dim
         decoder.append(nn.Linear(hidden_dim, output_dim))
@@ -81,8 +81,8 @@ class GraphNet(nn.Module):
             x_rigid = F.dropout(x_rigid, p=self.dropout_rate, training=self.training)
 
         # Using KNN to establish interaction between x_resting and x_rigid
-        edge_index = knn(x_resting, x_rigid, k=self.knn_k)
-        col, row = edge_index
+        # edge_index = knn(x_resting, x_rigid, k=self.knn_k)
+        # col, row = edge_index
 
         # Use scatter_mean for aggregation of features
         # pooled_features = scatter_mean(x_rigid[col], row, dim=0, dim_size=x_resting.size(0))

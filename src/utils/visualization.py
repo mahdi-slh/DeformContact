@@ -40,7 +40,7 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
     vector_lineset.points = o3d.utility.Vector3dVector(np.vstack([start_points, end_points]))
     n_rigid = len(start_points)
     vector_lineset.lines = o3d.utility.Vector2iVector([(i, i + n_rigid) for i in range(n_rigid)])
-    vector_lineset.colors = o3d.utility.Vector3dVector([[0.5, 0, 0] for _ in range(n_rigid)])
+    vector_lineset.colors = o3d.utility.Vector3dVector([[0.0, 0, 0.5] for _ in range(n_rigid)])
 
     lineset = o3d.geometry.LineSet()
     lineset.points = o3d.utility.Vector3dVector(np.concatenate((soft_rest_mesh_np, soft_def_mesh_np)))
@@ -49,9 +49,9 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
     
     
-    pcd_rigid.paint_uniform_color([0.8, 0, 0.0])  # Blue
+    pcd_rigid.paint_uniform_color([0.0, 0, 0.8])  # Blue
     pcd_rest.paint_uniform_color([0, 0.8, 0])
-    pcd_def.paint_uniform_color([0.8, 0.8, 0])
+    pcd_def.paint_uniform_color([0.8, 0.0, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
 
     coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
@@ -60,7 +60,7 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
 
 
 
-def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=None, pred_graph=None, translation=1.2):
+def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=None, pred_graph=None, translation=0.8):
     soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
     soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
@@ -142,32 +142,28 @@ def map_deformation_to_color(deformation_values):
     
     return colors
 
-
-def visualize_deformations_intensity(soft_rest_graph, soft_def_graph,deformation_intensities, translation=1.2):
+def visualize_deformations_normals_colors(soft_rest_graph, soft_def_graph, translation=0.8):
     soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
     soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
-    
-    # Compute deformation values
-    deformation_values = deformation_intensities.cpu().numpy()
-    deformation_colors = map_deformation_to_color(deformation_values)
+
 
     soft_rest_pcd = o3d.geometry.PointCloud()
     soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
-    soft_rest_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)
-    
+    soft_rest_pcd.estimate_normals() 
+
     soft_rest_lines = o3d.geometry.LineSet()
     soft_rest_lines.points = o3d.utility.Vector3dVector(soft_rest_points_np)
     soft_rest_lines.lines = o3d.utility.Vector2iVector(soft_rest_edge_index_np)
-    
+
     geometries = [soft_rest_pcd, soft_rest_lines]
-    
-    # Adding the deformed mesh visualization
+
     soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
     soft_def_edge_index_np = soft_def_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
+
     soft_def_pcd = o3d.geometry.PointCloud()
     soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
-    soft_def_pcd.colors = o3d.utility.Vector3dVector(deformation_colors)  # Use same deformation colors
+    soft_def_pcd.estimate_normals() 
 
     soft_def_lines = o3d.geometry.LineSet()
     soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
@@ -176,30 +172,3 @@ def visualize_deformations_intensity(soft_rest_graph, soft_def_graph,deformation
     geometries.extend([soft_def_pcd, soft_def_lines])  # Add deformed mesh geometries
 
     o3d.visualization.draw_geometries(geometries)
-
-
-def visualize_meshes(mesh1, mesh2):
-    """
-    Visualize two meshes with different colors.
-
-    Args:
-    mesh1: First mesh (Open3D triangle mesh)
-    mesh2: Second mesh (Open3D triangle mesh)
-    """
-    # Convert PyTorch tensors to numpy arrays
-    mesh1_np = mesh1.detach().numpy()
-    mesh2_np = mesh2.detach().numpy()
-
-    # Create Open3D PointCloud objects
-    pcd1 = o3d.geometry.PointCloud()
-    pcd2 = o3d.geometry.PointCloud()
-
-    pcd1.points = o3d.utility.Vector3dVector(mesh1_np)
-    pcd2.points = o3d.utility.Vector3dVector(mesh2_np)
-
-    # Set the colors
-    pcd1.paint_uniform_color([1, 0, 0])  # Red for the first mesh
-    pcd2.paint_uniform_color([0, 1, 0])  # Green for the second mesh
-
-    # Visualize
-    o3d.visualization.draw_geometries([pcd1, pcd2])

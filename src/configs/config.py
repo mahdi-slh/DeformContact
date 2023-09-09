@@ -1,14 +1,14 @@
 import json
 
 class Config:
-    def __init__(self, updates=None):
-        self.dataset = DatasetConfig()  # Initialize nested DatasetConfig class
-        self.visualization = VisualizationConfig()  # Initialize nested VisualizationConfig class
-        self.dataloader = DataLoaderConfig()  # Initialize nested DataLoaderConfig class
-        self.training = TrainingConfig()  # Initialize nested TrainingConfig class
-        self.network = NetworkConfig()  # Initialize nested NetworkConfig class
+    def __init__(self,path = 'configs/retina.json', updates=None):
+        self.dataset = DatasetConfig() 
+        self.visualization = VisualizationConfig() 
+        self.dataloader = DataLoaderConfig() 
+        self.training = TrainingConfig()
+        self.network = NetworkConfig()  
 
-        with open('configs/default.json', 'r') as f:
+        with open(path, 'r') as f:
             defaults = json.load(f)
         if defaults:
             self._load_defaults(defaults)
@@ -29,12 +29,6 @@ class Config:
                     if hasattr(getattr(self, key), sub_key):
                         setattr(getattr(self, key), sub_key, sub_value)
     def save(self, file_path):
-        """
-        Save the configuration to a JSON file.
-
-        Args:
-            file_path (str): The path to the JSON file where the configuration will be saved.
-        """
         config_dict = {
             "dataset": self.dataset.__dict__,
             "visualization": self.visualization.__dict__,
@@ -48,6 +42,7 @@ class Config:
 
 class DatasetConfig:
     def __init__(self):
+        self.name = None
         self.root_dir = None
         self.obj_list = None
         self.n_points = None

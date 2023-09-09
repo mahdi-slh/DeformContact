@@ -1,8 +1,7 @@
 from torch.utils.data import DataLoader
-from dataloaders.everyday_deform import EverydayDeformDataset
+from data.everyday_deform import EverydayDeformDataset
 from utils.visualization import *
-from dataloaders.collate import collate_fn
-
+from data.collate import collate_fn
 
 import json
 
