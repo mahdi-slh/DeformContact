@@ -104,7 +104,7 @@ def train(config):
     wandb.finish()
 
 if __name__ == "__main__":
-    config_path = "configs/retina.json" 
+    config_path = "configs/everyday.json" 
     config = Config(config_path)
     wandb.init(project="GeoContact")
     train(config)

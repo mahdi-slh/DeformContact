@@ -17,9 +17,9 @@ def eval():
 
     run_id = input("Enter the wandb run ID (e.g. mahdi-slh/GeoContact/runs/0pbafsok): ")
     model_path = "model_weights.pth"
-    config_path = "retina.json"
+    # config_path = "everyday.json"
 
-    config = Config("configs/retina.json")
+    config = Config("configs/everyday.json")
     
     log_dir = f'./wandb/{run_id}/logs'
     

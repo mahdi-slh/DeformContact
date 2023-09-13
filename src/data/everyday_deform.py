@@ -10,7 +10,7 @@ from data.common import *
 from data.common import _unity_to_open3d,_create_rigid_pointcloud,_feature_rigid,_load_deformed_mesh,_sample_nearest
 
 class EverydayDeformDataset(Dataset):
-    def __init__(self, root_dir, obj_list, n_points, graph_method, radius=None, k=None, split='train'):
+    def __init__(self, root_dir, obj_list, n_points, graph_method,sphere_radius,force_max, neigbor_radius=None, neigbor_k=None, split='train'):
         self.root_dir = root_dir
 
         self.samples = []
@@ -30,60 +30,61 @@ class EverydayDeformDataset(Dataset):
         soft_rest_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, example_obj, 'InitialMesh.ply'))
         self.soft_rest_mesh = soft_rest_mesh
         self.n_points = n_points
-        self.radius = radius
-        self.k = k
+        self.neigbor_radius = neigbor_radius
+        self.neigbor_k = neigbor_k
+        self.force_max = force_max
         self.graph_method = graph_method
-        self.rigid_radius = 0.25
+        self.rigid_radius = sphere_radius
 
     def __len__(self):
         return len(self.samples)
 
     def _construct_graph(self, mesh_tensor):
         if self.graph_method == 'knn':
-            return construct_graph(mesh_tensor, k=self.k)
+            return construct_graph(mesh_tensor, k=self.neigbor_k)
         elif self.graph_method == 'radius':
-            return construct_graph(mesh_tensor, radius=self.radius)
+            return construct_graph(mesh_tensor, radius=self.neigbor_radius)
 
     def __getitem__(self, idx):
         sample_path = self.samples[idx]
         obj_name = os.path.basename(os.path.dirname(sample_path))
         meta_data = self._read_meta_data(sample_path)
         contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
-        rigid_contact_mesh = _create_rigid_pointcloud(contact_point_np,self.rigid_radius)
-        rigid_graph = mesh_to_graph(self.rigid_mesh)
+        rigid_mesh = _create_rigid_pointcloud(contact_point_np,self.rigid_radius)
+        rigid_graph = mesh_to_graph(rigid_mesh)
         rigid_graph.x = _feature_rigid(meta_data, rigid_graph.x)
         soft_def_mesh = _load_deformed_mesh(sample_path, meta_data,self.root_dir)
         soft_rest_mesh = copy.deepcopy(self.soft_rest_mesh)
         soft_rest_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
-        sampled_soft_rest_mesh_t, sampled_soft_def_mesh_t = _sample_nearest(rigid_contact_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
-        soft_rest_graph = mesh_to_graph(sampled_soft_rest_mesh_t)
-        soft_def_graph = mesh_to_graph(sampled_soft_def_mesh_t)
+        sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = _sample_nearest(rigid_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
+        soft_rest_graph = mesh_to_graph(sampled_soft_rest_mesh_o3d)
+        soft_def_graph = mesh_to_graph(sampled_soft_def_mesh_o3d)
         return obj_name, soft_rest_graph, soft_def_graph, meta_data, rigid_graph
 
     def _read_meta_data(self, sample_path):
         with open(os.path.join(self.root_dir, sample_path + ".json"), "r") as f:
             json_data = json.load(f)[0]
 
-        force_vector = torch.tensor(self._unity_to_open3d([
+        force_vector = torch.tensor(_unity_to_open3d([
             json_data['forceDirectionX'],
             json_data['forceDirectionY'],
             json_data['forceDirectionZ']
         ]), dtype=torch.float32)
 
-        object_rigid_pos = torch.tensor(self._unity_to_open3d([
+        object_rigid_pos = torch.tensor(_unity_to_open3d([
             json_data['objectWorldPosX'],
             json_data['objectWorldPosY'],
             json_data['objectWorldPosZ']
         ]), dtype=torch.float32)
 
-        contact_position = torch.tensor(self._unity_to_open3d([
+        contact_position = torch.tensor(_unity_to_open3d([
             json_data['collisionPositionX'] - json_data['objectWorldPosX'],
             json_data['collisionPositionY'] - json_data['objectWorldPosY'],
             json_data['collisionPositionZ'] - json_data['objectWorldPosZ']
         ]), dtype=torch.float32)
         
 
-        velocity = torch.tensor(self._unity_to_open3d([
+        velocity = torch.tensor(_unity_to_open3d([
             json_data['velocityX'],
             json_data['velocityY'],
             json_data['velocityZ']
@@ -95,7 +96,7 @@ class EverydayDeformDataset(Dataset):
             json_data['angularVelocityZ']
         ], dtype=torch.float32)
 
-        inertia_tensor_position = torch.tensor(self._unity_to_open3d([
+        inertia_tensor_position = torch.tensor(_unity_to_open3d([
             json_data['inertiaTensorPositionX'],
             json_data['inertiaTensorPositionY'],
             json_data['inertiaTensorPositionZ']
@@ -107,20 +108,20 @@ class EverydayDeformDataset(Dataset):
             json_data['inertiaTensorRotationZ']
         ], dtype=torch.float32)
 
-        deformer_origin = torch.tensor(self._unity_to_open3d([
+        deformer_origin = torch.tensor(_unity_to_open3d([
             json_data['deformerOriginX'],
             json_data['deformerOriginY'],
             json_data['deformerOriginZ']
         ]), dtype=torch.float32)
 
-        deformer_collision_position = torch.tensor(self._unity_to_open3d([
+        deformer_collision_position = torch.tensor(_unity_to_open3d([
             json_data['deformerCollisionPositionX'],
             json_data['deformerCollisionPositionY'],
             json_data['deformerCollisionPositionZ']
         ]), dtype=torch.float32)
 
         return {
-            'force': json_data['force'],
+            'force': json_data['force']/self.force_max,
             'force_vector': force_vector,
             'contact_position': contact_position,
             'collision_impulse': json_data['collisionImpulse'],

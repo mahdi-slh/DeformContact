@@ -46,8 +46,10 @@ class DatasetConfig:
         self.root_dir = None
         self.obj_list = None
         self.n_points = None
-        self.radius = None
-        self.k = None
+        self.neigbor_radius = None
+        self.sphere_radius = None
+        self.neigbor_k = None
+        self.force_max = None
         self.graph_method = None
 
 class VisualizationConfig:
@@ -86,3 +88,5 @@ class NetworkConfig:
         self.dropout_rate = None
         self.knn_k = None
         self.backbone = None
+        self.use_mha = None
+        self.num_mha_heads=None

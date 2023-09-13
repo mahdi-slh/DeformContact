@@ -4,19 +4,26 @@ import os
 import numpy as np    
 
 def _feature_rigid(meta_data,pos_enc): 
-    contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
-    origin_point_np = meta_data['deformer_origin'].detach().numpy()    
+    # contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
+    # origin_point_np = meta_data['deformer_origin'].detach().numpy()    
 
-    vector_lineset = o3d.geometry.LineSet()
-    vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
-    vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
+    # vector_lineset = o3d.geometry.LineSet()
+    # vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
+    # vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
 
-    vector_lineset_np = np.asarray(vector_lineset.points)
-    vector_diff = vector_lineset_np[1] - vector_lineset_np[0]
-    vector_diff_t = torch.tensor(vector_diff, dtype=torch.float32)
-    vector_broadcasted = vector_diff_t.repeat(pos_enc.shape[0], 1)
+    # vector_lineset_np = np.asarray(vector_lineset.points)
+    # vector_diff = vector_lineset_np[1] - vector_lineset_np[0]
+    force_vector = meta_data['force_vector']
+    force_scaler = meta_data['force']
 
-    features = torch.cat([vector_broadcasted, pos_enc], dim=1)
+
+
+    vector_broadcasted = force_vector.repeat(pos_enc.shape[0], 1)
+
+    force_scaler_t = torch.tensor(force_scaler, dtype=torch.float32)
+    scaler_broadcasted = force_scaler_t.repeat(pos_enc.shape[0], 1)
+
+    features = torch.cat([vector_broadcasted,scaler_broadcasted, pos_enc,], dim=1)
     return features
 
 def _unity_to_open3d(vector_or_position):

@@ -10,15 +10,11 @@ sweep_config = {
         'goal': 'minimize'  # or 'maximize' depending on your needs
     },
     "parameters": {
-        # "encoder_layers": {"values": [2, 3]},
-        "hidden_dim": {"values": [128, 256]},
-        "dropout_rate": {
-            "distribution": "uniform", 
-            "min": 0.0, 
-            "max": 0.2
-        },
+        "encoder_layers": {"values": [2, 3]},
+        "decoder_layers": {"values": [2, 3]},
+        "hidden_dim": {"values": [64,128, 256]},
+
         "knn_k": {"values": [3, 5,7]},
-        # "backbone": {"values": ["GATConv", "GCNConv", "TAGConv"]},
         "learning_rate": {
             "distribution": "uniform", 
             "min": 0.0001, 
@@ -37,12 +33,12 @@ sweep_config = {
 def train_sweep():
     run = wandb.init()
     # wandb.init(project="GeoContact")  # Initialize wandb
-    config = Config()  # Initialize your Config object
-    # config.network.encoder_layers = run.config["encoder_layers"]
+    config_path = "configs/everyday.json" 
+    config = Config(config_path)  # Initialize your Config object
+    config.network.encoder_layers = run.config["encoder_layers"]
+    config.network.decoder_layers = run.config["decoder_layers"]
     config.network.hidden_dim = run.config["hidden_dim"]
-    config.network.dropout_rate = run.config["dropout_rate"]
     config.network.knn_k = run.config["knn_k"]
-    # config.network.backbone = run.config["backbone"]
     config.training.learning_rate = run.config["learning_rate"]
     config.training.lambda_gradient = run.config["lambda_gradient"]
     

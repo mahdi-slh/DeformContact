@@ -54,9 +54,9 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
     pcd_def.paint_uniform_color([0.8, 0.0, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
 
-    coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
-    print(contact_point_np, max_deformation_point)
-    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_rigid, coor, vector_lineset])
+    # coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
+    # print(contact_point_np, max_deformation_point)
+    o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_rigid, vector_lineset])
 
 
 
@@ -100,7 +100,10 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
     rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
     rigid_lines.lines = o3d.utility.Vector2iVector(rigid_edge_index_np)
     
+
+    # coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
     geometries.extend([rigid_pcd, rigid_lines])
+    
 
     if pred_graph:
         pred_points_np = pred_graph.pos.cpu().numpy() + [2*translation, 0, 0]

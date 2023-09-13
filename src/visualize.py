@@ -18,8 +18,8 @@ if __name__ == "__main__":
         obj_list = dataset_config["obj_list"], 
         n_points = dataset_config["n_points"],
         graph_method = dataset_config["graph_method"],
-        radius = dataset_config["radius"],
-        k = dataset_config["k"]
+        neigbor_radius = dataset_config["radius"],
+        neigbor_k = dataset_config["k"]
     )
 
 

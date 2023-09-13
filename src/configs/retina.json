@@ -2,9 +2,10 @@
     "dataset": {
         "name":"retina",
         "root_dir": "../datasets/everyday_deform/deformations/retina",
-        "n_points": 1024,
-        "radius": 0.15,
-        "k":5,
+        "n_points": 256,
+        "neigbor_radius": 0.15,
+        "neigbor_k":5,
+        "force_max":100,
         "graph_method":"knn"
     },
     "visualization": {
@@ -25,16 +26,18 @@
     },
     "training": {
         "n_epochs": 1000,
-        "learning_rate": 0.001,
+        "learning_rate": 0.0004,
         "model_save_path": "model.pth",
         "lambda_gradient": 1.0,
-        "lambda_deformable": 1.0
+        "lambda_deformable": 0.1
     },
     "network": {
-        "input_dims": [21, 24],
-        "hidden_dim": 128,
+        "input_dims": [21, 25],
+        "use_mha":true,
+        "num_mha_heads": 2,
+        "hidden_dim": 256,
         "output_dim": 3,
-        "encoder_layers":3,
+        "encoder_layers":2,
         "decoder_layers":3,
         "dropout_rate": 0.00,
         "knn_k": 7,

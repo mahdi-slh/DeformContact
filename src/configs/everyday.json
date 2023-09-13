@@ -2,10 +2,12 @@
     "dataset": {
         "name":"everyday",
         "root_dir": "../datasets/everyday_deform/deformations/",
-        "obj_list": ["Box"],
+        "obj_list": ["Bottle"],
         "n_points": 4096,
-        "radius": 0.15,
-        "k":5,
+        "neigbor_radius": 0.15,
+        "neigbor_k":5,
+        "sphere_radius":0.05,
+        "force_max":10000,
         "graph_method":"knn"
     },
     "visualization": {
@@ -21,7 +23,7 @@
         }
     },
     "dataloader": {
-        "batch_size": 4,
+        "batch_size": 12,
         "shuffle": true
     },
     "training": {
@@ -29,13 +31,15 @@
         "learning_rate": 0.001,
         "model_save_path": "model.pth",
         "lambda_gradient": 1.0,
-        "lambda_deformable": 1.0
+        "lambda_deformable": 0.1
     },
     "network": {
-        "input_dims": [21, 24],
-        "hidden_dim": 128,
+        "input_dims": [21, 25],
+        "use_mha":true,
+        "num_mha_heads": 2,
+        "hidden_dim": 256,
         "output_dim": 3,
-        "encoder_layers":3,
+        "encoder_layers":2,
         "decoder_layers":3,
         "dropout_rate": 0.00,
         "knn_k": 7,

@@ -30,5 +30,5 @@ def convert_stl_to_ply(directory):
 
 if __name__ == "__main__":
     # Specify the directory containing your .stl files here
-    directory_path = "../../datasets/everyday_deform/deformations/retina"
+    directory_path = "../../datasets/everyday_deform/deformations/Bottle"
     convert_stl_to_ply(directory_path)
