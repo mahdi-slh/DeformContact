@@ -56,7 +56,10 @@ class EverydayDeformDataset(Dataset):
         soft_def_mesh = _load_deformed_mesh(sample_path, meta_data,self.root_dir)
         soft_rest_mesh = copy.deepcopy(self.soft_rest_mesh)
         soft_rest_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
-        sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = _sample_nearest(rigid_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
+        if self.n_points ==-1:
+            sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = soft_rest_mesh, soft_def_mesh
+        else:
+            sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = _sample_nearest(rigid_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
         soft_rest_graph = mesh_to_graph(sampled_soft_rest_mesh_o3d)
         soft_def_graph = mesh_to_graph(sampled_soft_def_mesh_o3d)
         return obj_name, soft_rest_graph, soft_def_graph, meta_data, rigid_graph
