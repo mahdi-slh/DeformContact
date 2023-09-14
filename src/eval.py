@@ -16,21 +16,18 @@ from utils.graph_utils import *
 def eval():
 
     run_id = input("Enter the wandb run ID (e.g. mahdi-slh/GeoContact/runs/0pbafsok): ")
-    model_path = "model_weights.pth"
-    # config_path = "everyday.json"
+    model_file_name = "model_weights.pth"
+    config_file_name = "config.json"
 
-    config = Config("configs/everyday.json")
+    
     
     log_dir = f'./wandb/{run_id}/logs'
     
     run = wandb.Api().run(run_id)
-    run.file(model_path).download(replace=True, root=log_dir)
-    # run.file(config_path).download(replace=True, root=log_dir)
-    
-    # with open(os.path.join(log_dir, config_path), 'r') as f:
-    #     saved_config = json.load(f) 
-    
-    # config = Config(saved_config)
+    run.file(model_file_name).download(replace=True, root=log_dir)
+    run.file(config_file_name).download(replace=True, root=log_dir)
+
+    config = Config(os.path.join(log_dir,config_file_name))
 
     _,dataloader_val = load_dataset(config)
 

@@ -7,6 +7,7 @@ from torch_geometric.data import Batch
 from configs.config import Config
 from models.model_loader import load_model
 from models.losses import GradientConsistencyLoss
+import random
 
 import wandb
 
@@ -21,6 +22,7 @@ def train(config):
     criterion_mse = nn.L1Loss()
     criterion_grad = GradientConsistencyLoss()
     lambda_gradient = config.training.lambda_gradient
+    min_val = 10000.0
 
     for epoch in range(config.training.n_epochs):
         total_tr_loss = 0
@@ -81,6 +83,7 @@ def train(config):
                 total_val_loss += loss_val.item()
 
         avg_val_loss = total_val_loss / len(dataloader_val)
+        
         avg_tr_loss = total_tr_loss / len(dataloader_train)
         print(f"Epoch {epoch+1}/{config.training.n_epochs} - Training Loss: {avg_tr_loss} - Validation Loss: {avg_val_loss}")
         
@@ -88,23 +91,25 @@ def train(config):
         wandb.log({"validation_loss": avg_val_loss})
 
         # Save the model after each epoch
-        model_save_path = os.path.join(wandb.run.dir, 'model_weights.pth')
-        config_save_path = os.path.join(wandb.run.dir, 'config.json')
+        if min_val>avg_val_loss:
+            model_save_path = os.path.join(wandb.run.dir, 'model_weights.pth')
+            config_save_path = os.path.join(wandb.run.dir, 'config.json')
 
-        torch.save(model.state_dict(), model_save_path)
+            torch.save(model.state_dict(), model_save_path)
+            min_val= avg_val_loss
 
-        # Save the configuration file to the same directory
-        config.save(config_save_path)
+            # Save the configuration file to the same directory
+            config.save(config_save_path)
 
 
-        # Save both files to the WandB run directory
-        wandb.save(model_save_path)
-        wandb.save(config_save_path)
+            # Save both files to the WandB run directory
+            wandb.save(model_save_path)
+            wandb.save(config_save_path)
 
     wandb.finish()
 
 if __name__ == "__main__":
     config_path = "configs/everyday.json" 
     config = Config(config_path)
-    wandb.init(project="GeoContact")
+    wandb.init(project="GeoContact",name="{}-{}".format(config.dataset.obj_list[0],random.randint(1000,9999)))
     train(config)

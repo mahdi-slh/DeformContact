@@ -23,7 +23,7 @@ class MultiHeadAttention(nn.Module):
         return torch.cat(outputs, dim=-1)
     
 class GraphNet(nn.Module):
-    def __init__(self, input_dims, hidden_dim, output_dim, encoder_layers, decoder_layers, dropout_rate, knn_k, backbone,use_mha, num_mha_heads):
+    def __init__(self, input_dims, hidden_dim, output_dim, encoder_layers, decoder_layers, dropout_rate, knn_k, backbone,use_mha, num_mha_heads,mode):
         super(GraphNet, self).__init__()
 
         self.encoder_layers = encoder_layers
@@ -37,6 +37,7 @@ class GraphNet(nn.Module):
 
         self.dropout_rate = dropout_rate
         self.knn_k = knn_k
+        self.mode = mode
 
         # Choose the appropriate convolution layer based on the selected backbone
         conv_layer = GATConv if self.backbone == "GATConv" else GCNConv if self.backbone == "GCNConv" else TAGConv
@@ -107,6 +108,9 @@ class GraphNet(nn.Module):
 
         # Building a graph with deformed positions
         deformed_graph = graph_resting.clone()
-        deformed_graph.pos = x_out
+        if  self.mode == "res":
+            deformed_graph.pos += x_out
+        elif self.mode == "rec":
+            deformed_graph.pos = x_out
 
         return deformed_graph

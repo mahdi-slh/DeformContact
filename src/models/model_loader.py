@@ -10,7 +10,8 @@ def load_model(config):
                     knn_k=config.network.knn_k,
                     use_mha= config.network.use_mha,
                     num_mha_heads= config.network.num_mha_heads,
-                    backbone=config.network.backbone)
+                    backbone=config.network.backbone,
+                    mode=config.network.mode)
 
     return model
 

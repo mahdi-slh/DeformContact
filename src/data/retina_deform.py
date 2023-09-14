@@ -42,7 +42,7 @@ class RetinaDeformDataset(Dataset):
 
     def create_cylinder_between_points(self,a, b):
         # Create a cylinder mesh with specified height and radius
-        cylinder_height = 15# np.linalg.norm(np.array(b) - np.array(a))
+        cylinder_height = 5# np.linalg.norm(np.array(b) - np.array(a))
         mesh_cylinder = o3d.geometry.TriangleMesh.create_cylinder(radius=0.5, height=cylinder_height)
 
         # Calculate the direction vector from point a to point b

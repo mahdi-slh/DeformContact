@@ -2,6 +2,7 @@
     "dataset": {
         "name":"retina",
         "root_dir": "../datasets/everyday_deform/deformations/retina",
+        "obj_list": ["retina"],
         "n_points": 256,
         "neigbor_radius": 0.15,
         "neigbor_k":5,
@@ -41,6 +42,7 @@
         "decoder_layers":3,
         "dropout_rate": 0.00,
         "knn_k": 7,
-        "backbone": "TAGConv"
+        "backbone": "TAGConv",
+        "mode": "res"
     }
 }

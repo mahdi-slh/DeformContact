@@ -90,3 +90,4 @@ class NetworkConfig:
         self.backbone = None
         self.use_mha = None
         self.num_mha_heads=None
+        self.mode = None
