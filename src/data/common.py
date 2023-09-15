@@ -8,7 +8,7 @@ def _feature_rigid(meta_data,pos_enc):
     # origin_point_np = meta_data['deformer_origin'].detach().numpy()    
 
     # vector_lineset = o3d.geometry.LineSet()
-    # vector_lineset.points = o3d.utility.Vector3dVector([origin_point_np, contact_point_np])
+    # vector_lineset.points = o3d.utility.3dVector([origin_point_np, contact_point_np])
     # vector_lineset.lines = o3d.utility.Vector2iVector([[0, 1]])
 
     # vector_lineset_np = np.asarray(vector_lineset.points)

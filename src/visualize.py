@@ -21,5 +21,5 @@ if __name__ == "__main__":
 
             for indx in range(config.dataloader.batch_size):
                     visualize_deformations_normals_colors(soft_rest_graphs[indx], soft_def_graphs_batched[indx])
-                    visualize_deformation_field(soft_rest_graphs[indx].pos.cpu(), soft_def_graphs_batched[indx].pos.cpu(),rigid_graphs[indx].pos.cpu(), meta_data['deformer_collision_position'][indx], meta_data['deformer_origin'][indx])
+                    visualize_deformation_field(soft_rest_graphs[indx].pos.cpu(), soft_def_graphs_batched[indx].pos.cpu(),rigid_graphs[indx].pos.cpu(), meta_data['force_vector'][indx])
                     visualize_merged_graphs(soft_rest_graphs[indx], soft_def_graphs_batched[indx], rigid_graphs[indx],soft_def_graphs_batched[indx])

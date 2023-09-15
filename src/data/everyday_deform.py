@@ -14,21 +14,21 @@ class EverydayDeformDataset(Dataset):
         self.root_dir = root_dir
 
         self.samples = []
+        self.soft_rest_mesh = {}
         for obj in obj_list:
             obj_samples = [os.path.join(obj, f[:-4]) for f in os.listdir(os.path.join(root_dir, obj)) if f.endswith('.ply') and f != 'InitialMesh.ply']
-            self.samples.extend(obj_samples)
-        self.samples.sort()
+            obj_samples.sort()
+            num_samples = len(obj_samples)
+            train_samples = int(0.8 * num_samples)
+            if split == 'train':
+                obj_split = obj_samples[:train_samples]
+            elif split == 'val':
+                obj_split = obj_samples[train_samples:]
+            self.samples.extend(obj_split)
 
-        num_samples = len(self.samples)
-        train_samples = int(0.8 * num_samples)
-        if split == 'train':
-            self.samples = self.samples[:train_samples]
-        elif split == 'val':
-            self.samples = self.samples[train_samples:]
+            soft_rest_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, obj, 'InitialMesh.ply'))
+            self.soft_rest_mesh[obj] = soft_rest_mesh
 
-        example_obj = obj_list[0]
-        soft_rest_mesh = o3d.io.read_triangle_mesh(os.path.join(self.root_dir, example_obj, 'InitialMesh.ply'))
-        self.soft_rest_mesh = soft_rest_mesh
         self.n_points = n_points
         self.neigbor_radius = neigbor_radius
         self.neigbor_k = neigbor_k
@@ -48,13 +48,14 @@ class EverydayDeformDataset(Dataset):
     def __getitem__(self, idx):
         sample_path = self.samples[idx]
         obj_name = os.path.basename(os.path.dirname(sample_path))
+
         meta_data = self._read_meta_data(sample_path)
         contact_point_np = meta_data['deformer_collision_position'].detach().numpy()
         rigid_mesh = _create_rigid_pointcloud(contact_point_np,self.rigid_radius)
         rigid_graph = mesh_to_graph(rigid_mesh)
         rigid_graph.x = _feature_rigid(meta_data, rigid_graph.x)
         soft_def_mesh = _load_deformed_mesh(sample_path, meta_data,self.root_dir)
-        soft_rest_mesh = copy.deepcopy(self.soft_rest_mesh)
+        soft_rest_mesh = copy.deepcopy(self.soft_rest_mesh[obj_name])
         soft_rest_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
         if self.n_points ==-1:
             sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = soft_rest_mesh, soft_def_mesh
@@ -62,6 +63,12 @@ class EverydayDeformDataset(Dataset):
             sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = _sample_nearest(rigid_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
         soft_rest_graph = mesh_to_graph(sampled_soft_rest_mesh_o3d)
         soft_def_graph = mesh_to_graph(sampled_soft_def_mesh_o3d)
+
+        meta_data['rigid_mesh'] = rigid_mesh
+        meta_data['soft_rest_mesh'] = soft_rest_mesh
+        
+        meta_data['sample_path'] = sample_path
+
         return obj_name, soft_rest_graph, soft_def_graph, meta_data, rigid_graph
 
     def _read_meta_data(self, sample_path):

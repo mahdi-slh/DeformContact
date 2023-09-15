@@ -2,7 +2,7 @@
     "dataset": {
         "name":"everyday",
         "root_dir": "../datasets/everyday_deform/deformations/",
-        "obj_list": ["Dog"],
+        "obj_list": ["Box","Cat","Pillow","Dog","Donut","Doritos","Bottle","Flipflop"],
         "n_points": -1,
         "neigbor_radius": 0.15,
         "neigbor_k":5,

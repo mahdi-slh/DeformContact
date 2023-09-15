@@ -3,6 +3,7 @@
 src/logs/*
 src/wandb/*
 /wandb/*
+src/outputs/*
 
 
 # vs code

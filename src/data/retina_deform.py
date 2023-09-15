@@ -97,6 +97,7 @@ class RetinaDeformDataset(Dataset):
         # soft_rest_mesh.translate(meta_data['object_rigid_pos'].detach().cpu().numpy())
         sampled_soft_rest_mesh_o3d, sampled_soft_def_mesh_o3d = _sample_nearest(rigid_mesh, soft_def_mesh, soft_rest_mesh,self.n_points)
         max_bound = np.maximum(np.max(np.abs(sampled_soft_def_mesh_o3d.get_min_bound())),np.max(np.abs(sampled_soft_def_mesh_o3d.get_max_bound())))
+        # print(max_bound)
         # scale_ratio = 1/max_bound
         center = np.array([0.0, 0.0, 0.0])
         sampled_soft_rest_mesh_o3d.scale(1/max_bound,center)

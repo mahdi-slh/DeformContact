@@ -3,7 +3,7 @@
         "name":"retina",
         "root_dir": "../datasets/everyday_deform/deformations/retina",
         "obj_list": ["retina"],
-        "n_points": 256,
+        "n_points": 64,
         "neigbor_radius": 0.15,
         "neigbor_k":5,
         "force_max":100,

@@ -3,19 +3,17 @@
 import open3d as o3d
 import numpy as np
 from utils.graph_utils import *
+from pyquaternion import Quaternion
 
-def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, contact_point, origin_point):
+def visualize_deformation_field(soft_rest_graph, soft_def_graph, rigid_graph, force_vector):
     # Extract node features (points) from the graph object
     soft_rest_mesh_np = soft_rest_graph.detach().numpy()
     soft_def_mesh_np = soft_def_graph.detach().numpy()
     rigid_graph_np = rigid_graph.detach().numpy()
-    contact_point_np = contact_point.detach().numpy()
-    origin_point_np = origin_point.detach().numpy()
+    force_vector_np = force_vector.detach().numpy()
 
     # Calculate deformation magnitudes and find the point with the maximum deformation
     deformation_magnitudes = np.linalg.norm(soft_def_mesh_np - soft_rest_mesh_np, axis=1)
-    max_deformation_index = np.argmax(deformation_magnitudes)
-    max_deformation_point = soft_rest_mesh_np[max_deformation_index]
 
     pcd_rest = o3d.geometry.PointCloud()
     pcd_def = o3d.geometry.PointCloud()
@@ -29,10 +27,9 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
     n = len(soft_rest_mesh_np)
     lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
 
-    # Calculate small vectors from each vertex of the rigid point cloud
-    direction = origin_point_np - contact_point_np
-    direction /= np.linalg.norm(direction)
-    scaled_direction = direction * 0.1  # Change 0.1 to adjust the length of small vectors
+    # Use the force vector for the direction
+    direction = force_vector_np / np.linalg.norm(force_vector_np)
+    scaled_direction = -direction * 0.1  # Adjust the length of small vectors
 
     start_points = rigid_graph_np
     end_points = rigid_graph_np + scaled_direction
@@ -40,29 +37,24 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph,rigid_graph, con
     vector_lineset.points = o3d.utility.Vector3dVector(np.vstack([start_points, end_points]))
     n_rigid = len(start_points)
     vector_lineset.lines = o3d.utility.Vector2iVector([(i, i + n_rigid) for i in range(n_rigid)])
-    vector_lineset.colors = o3d.utility.Vector3dVector([[0.0, 0, 0.5] for _ in range(n_rigid)])
+    vector_lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.9] for _ in range(n_rigid)])
 
-    lineset = o3d.geometry.LineSet()
-    lineset.points = o3d.utility.Vector3dVector(np.concatenate((soft_rest_mesh_np, soft_def_mesh_np)))
-    n = len(soft_rest_mesh_np)
-    lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
-    lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
-    
-    
     pcd_rigid.paint_uniform_color([0.0, 0, 0.8])  # Blue
     pcd_rest.paint_uniform_color([0, 0.8, 0])
     pcd_def.paint_uniform_color([0.8, 0.0, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
 
-    # coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
-    # print(contact_point_np, max_deformation_point)
     o3d.visualization.draw_geometries([pcd_rest, pcd_def, lineset, pcd_rigid, vector_lineset])
 
 
-
-def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=None, pred_graph=None, translation=0.8):
+def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=None, pred_graph=None):
     soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
     soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
+
+    # Calculate the x-width of the resting object
+    x_min = np.min(soft_rest_points_np[:, 0])
+    x_max = np.max(soft_rest_points_np[:, 0])
+    translation = (x_max - x_min)  *1.5
 
     soft_rest_pcd = o3d.geometry.PointCloud()
     soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
@@ -73,6 +65,21 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
     soft_rest_lines.lines = o3d.utility.Vector2iVector(soft_rest_edge_index_np)
 
     geometries = [soft_rest_pcd, soft_rest_lines]
+
+    rigid_points_np = rigid_graph.pos.cpu().numpy() 
+    rigid_edge_index_np = rigid_graph.edge_index.t().cpu().numpy().astype(np.int32)
+    
+    rigid_pcd = o3d.geometry.PointCloud()
+    rigid_pcd.points = o3d.utility.Vector3dVector(rigid_points_np)
+    rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the rigid mesh
+    
+    rigid_lines = o3d.geometry.LineSet()
+    rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
+    rigid_lines.lines = o3d.utility.Vector2iVector(rigid_edge_index_np)
+    
+
+    # coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
+    geometries.extend([rigid_pcd, rigid_lines])
 
 
     soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
@@ -145,33 +152,73 @@ def map_deformation_to_color(deformation_values):
     
     return colors
 
-def visualize_deformations_normals_colors(soft_rest_graph, soft_def_graph, translation=0.8):
+def visualize_deformations_normals_colors(soft_rest_graph, soft_def_graph=None):
     soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
     soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
+    x_min = np.min(soft_rest_points_np[:, 0])
+    x_max = np.max(soft_rest_points_np[:, 0])
+    translation = (x_max - x_min)  *1.5
 
     soft_rest_pcd = o3d.geometry.PointCloud()
     soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
-    soft_rest_pcd.estimate_normals() 
+    soft_rest_pcd.estimate_normals()    
 
     soft_rest_lines = o3d.geometry.LineSet()
     soft_rest_lines.points = o3d.utility.Vector3dVector(soft_rest_points_np)
     soft_rest_lines.lines = o3d.utility.Vector2iVector(soft_rest_edge_index_np)
+    
 
     geometries = [soft_rest_pcd, soft_rest_lines]
+    if soft_def_graph:
 
-    soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
-    soft_def_edge_index_np = soft_def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+        soft_def_points_np = soft_def_graph.pos.cpu().numpy() + [translation, 0, 0]
+        soft_def_edge_index_np = soft_def_graph.edge_index.t().cpu().numpy().astype(np.int32)
+
+        soft_def_pcd = o3d.geometry.PointCloud()
+        soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
+        soft_def_pcd.estimate_normals() 
+
+        soft_def_lines = o3d.geometry.LineSet()
+        soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
+        soft_def_lines.lines = o3d.utility.Vector2iVector(soft_def_edge_index_np)
+
+        geometries.extend([soft_def_pcd, soft_def_lines]) 
+
+    show_from_side(geometries)
 
 
-    soft_def_pcd = o3d.geometry.PointCloud()
-    soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
-    soft_def_pcd.estimate_normals() 
 
-    soft_def_lines = o3d.geometry.LineSet()
-    soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
-    soft_def_lines.lines = o3d.utility.Vector2iVector(soft_def_edge_index_np)
+def show_from_center(objs):
+    vis = o3d.visualization.Visualizer()
 
-    geometries.extend([soft_def_pcd, soft_def_lines])  # Add deformed mesh geometries
+    vis.create_window()
+    [vis.add_geometry(obj) for obj in objs]
+    cam = vis.get_view_control().convert_to_pinhole_camera_parameters()
+    pose = np.eye(4)
+    pose[2, 3] = 1
+    cam.extrinsic = pose
+    vis.get_view_control().convert_from_pinhole_camera_parameters(cam)
+    vis.get_render_option().point_size = 2
+    vis.run()
+    vis.destroy_window()
 
-    o3d.visualization.draw_geometries(geometries)
+
+def show_from_side(objs):
+    vis = o3d.visualization.Visualizer()
+
+    vis.create_window()
+    [vis.add_geometry(obj) for obj in objs]
+    cam = vis.get_view_control().convert_to_pinhole_camera_parameters()
+    top_rot = Quaternion(axis=(1.0, 0.0, 0.0), degrees=200)
+    pose = np.eye(4)
+    pose[2, 3] = 2.0
+    # pose[2,2]=1
+    pose[0:3, 0:3] = top_rot.rotation_matrix
+    cam.extrinsic = pose
+    vis.get_view_control().convert_from_pinhole_camera_parameters(cam)
+    vis.get_render_option().point_size = 8
+    # vis.get_render_option().light_on=False
+    vis.run()
+    vis.destroy_window()
+

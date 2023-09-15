@@ -68,3 +68,30 @@ def mesh_to_graph(mesh,encode=True):
         feat = vertices_t
 
     return Data(x=feat, edge_index=edge_indices_t, pos=vertices_t)
+
+def graph_to_mesh(graph):
+    # Convert node positions to numpy array
+    vertices = graph.pos.cpu().numpy()
+    
+    # Create a set to store unique triangles
+    triangle_set = set()
+    edge_indices = graph.edge_index.t().cpu().numpy()
+    
+    # For every edge, check for common nodes to form triangles
+    for i in range(edge_indices.shape[0]):
+        for j in range(i + 1, edge_indices.shape[0]):
+            common_nodes = set(edge_indices[i]).intersection(set(edge_indices[j]))
+            if len(common_nodes) == 1:
+                triangle_nodes = set(edge_indices[i]).union(set(edge_indices[j]))
+                if len(triangle_nodes) == 3:
+                    triangle_set.add(tuple(sorted(triangle_nodes)))
+    
+    # Convert triangle set to numpy array
+    triangles = np.array(list(triangle_set), dtype=np.int32)
+    
+    # Create an Open3D triangle mesh
+    mesh = o3d.geometry.TriangleMesh()
+    mesh.vertices = o3d.utility.Vector3dVector(vertices)
+    mesh.triangles = o3d.utility.Vector3iVector(triangles)
+    
+    return mesh
