@@ -16,12 +16,11 @@ Predict deformation of shapes using physics-informed graphs
    cd GeoContact/src
 Replace username with your GitHub username and repository with the name of your repository.
 
-2. **Create and Activate Conda Environment:**
-
-
+2. **Run Setup Script:**
    ```sh
-    conda env create -f environment.yml
-    conda activate deform
+    bash setup.sh
+
+This script will create and activate a conda environment named deform, and install the necessary packages.
 
 3. **Setup Weights & Biases:**
 
@@ -29,15 +28,17 @@ Replace username with your GitHub username and repository with the name of your 
     wandb login
 Follow the on-screen instructions to log in to your Weights & Biases account.
 
-4. **Train the Model**
-   ```sh
-    python train.py
-Ensure the config_path variable in the main function of train.py is set to the path of your config file.
 
-5. **Visualize the Results**
+4. **Visualize the data**
    ```sh
     python visualize.py
 Ensure the config_path variable in the main function of visualize.py is set to the path of your config file.
+
+
+5. **Train the Model**
+   ```sh
+    python train.py
+Ensure the config_path variable in the main function of train.py is set to the path of your config file.
 
 6. **Evaluate the Model**
    ```sh
