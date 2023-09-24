@@ -1,4 +1,4 @@
-# Project Name
+# Physics-Informed Graph Neural Networks for Deformation Prediction under Contact
 
 Predict deformation of shapes using physics-informed graphs 
 
