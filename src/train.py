@@ -10,9 +10,6 @@ from models.losses import GradientConsistencyLoss
 import random
 
 import wandb
-
-
-
 def train(config):
 
     dataloader_train,dataloader_val = load_dataset(config)
