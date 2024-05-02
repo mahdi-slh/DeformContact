@@ -1,6 +1,6 @@
 # Physics-Encoded Graph Neural Networks for Deformation Prediction under Contact
 
-This repository contains the implementation of a model that predicts deformation of shapes using physics encoded graph neural networks. Our approach has been accepted at ICRA 2024, and you can find the preprint of our paper on [arXiv](https://arxiv.org/abs/xxxx.xxxxx).
+This repository contains the implementation of a model that predicts deformation of shapes using physics encoded graph neural networks. Our approach has been accepted at ICRA 2024, and you can find the preprint of our paper on [arXiv](https://arxiv.org/abs/2402.03466).
 
 ## Prerequisites
 
@@ -31,7 +31,7 @@ Follow the on-screen instructions.
 
 
 4. **Download the dataset**
-Please download the dataset from [here](https://wandb.ai/) and place it in the following directory within the cloned repository.
+Please download the dataset from [here](https://drive.google.com/file/d/1mWIK1WM-qEE67y9Kvj2UVY7d45fTUBHv/view?usp=sharing) and place it in the following directory within the cloned repository.
    ```sh
     python visualize.py
 Ensure the config_path variable in the main function of visualize.py is set to the path of your config file.
