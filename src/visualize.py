@@ -6,7 +6,7 @@ from configs.config import Config
 from torch_geometric.data import Batch
 
 if __name__ == "__main__":
-    config = Config("configs/retina.json")
+    config = Config("configs/everyday.json")
 
     _,dataloader_val = load_dataset(config)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")

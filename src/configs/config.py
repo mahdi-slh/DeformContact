@@ -1,7 +1,7 @@
 import json
 
 class Config:
-    def __init__(self,path = 'configs/retina.json', updates=None):
+    def __init__(self,path = 'configs/everyday.json', updates=None):
         self.dataset = DatasetConfig() 
         self.visualization = VisualizationConfig() 
         self.dataloader = DataLoaderConfig() 
