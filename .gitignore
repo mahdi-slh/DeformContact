@@ -1,12 +1,9 @@
-/datasets/everyday_deform/object_models/*
-/datasets/everyday_deform/deformations/*
-/datasets/everyday_deform/deformations_unity/*
-src/logs/*
-src/wandb/*
-/wandb/*
-src/outputs/*
+.gitignore
+dataset/everyday_deform/*
+logs/*
+wandb/*
+outputs/*
 build/
-outputs/
 
 
 # vs code

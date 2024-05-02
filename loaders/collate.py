@@ -4,10 +4,8 @@ import torch
 def collate_fn(batch):
     obj_names, soft_rest_graphs, soft_def_graphs, metas, rigid_graphs = zip(*batch)
     
-    # Collate simple data
     obj_names = [name for name in obj_names]
 
-    # For meta data
     tensor_meta_keys = [key for key in metas[0].keys() if isinstance(metas[0][key], torch.Tensor)]
     scalar_meta_keys = [key for key in metas[0].keys() if not isinstance(metas[0][key], torch.Tensor)]
 

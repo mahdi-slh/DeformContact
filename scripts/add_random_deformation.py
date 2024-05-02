@@ -13,10 +13,10 @@ def apply_deformation(mesh, center, sigma_vector):
     mesh.vertices = o3d.utility.Vector3dVector(vertices)
     return vertices, np.sum(force, axis=0)
 
-mesh_path = f"datasets/everyday_deform/deformations/bag/{frame_id}_rest.obj"
+mesh_path = f"dataset/everyday_deform/bag/{frame_id}_rest.obj"
 mesh = o3d.io.read_triangle_mesh(mesh_path)
 
-# Randomly select a vertex as the center
+
 vertex_indices = np.arange(len(mesh.vertices))
 random_vertex_index = np.random.choice(vertex_indices)
 center = np.asarray(mesh.vertices)[random_vertex_index]
@@ -42,11 +42,11 @@ data = {
     }
 }
 
-json_path = f"datasets/everyday_deform/deformations/bag/{frame_id}.json"
+json_path = f"dataset/everyday_deform/bag/{frame_id}.json"
 with open(json_path, 'w') as file:
     json.dump(data, file, indent=4)
 
 o3d.visualization.draw_geometries([mesh])
 
-mesh_out_path = f"datasets/everyday_deform/deformations/bag/{frame_id}_def.obj"
+mesh_out_path = f"dataset/everyday_deform/bag/{frame_id}_def.obj"
 o3d.io.write_triangle_mesh(mesh_out_path, mesh)

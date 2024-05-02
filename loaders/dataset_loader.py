@@ -1,6 +1,6 @@
-from data.everyday_deform import EverydayDeformDataset
+from loaders.everyday_deform import EverydayDeformDataset
 from torch.utils.data import DataLoader
-from data.collate import collate_fn
+from loaders.collate import collate_fn
 
 
 def load_dataset(config):

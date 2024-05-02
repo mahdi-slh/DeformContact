@@ -6,8 +6,8 @@ import torch
 import json
 from utils.graph_utils import mesh_to_graph
 import copy
-from data.common import *
-from data.common import _unity_to_open3d,_create_rigid_pointcloud,_feature_rigid,_load_deformed_mesh,_sample_nearest
+from loaders.common import *
+from loaders.common import _unity_to_open3d,_create_rigid_pointcloud,_feature_rigid,_load_deformed_mesh,_sample_nearest
 
 class EverydayDeformDataset(Dataset):
     def __init__(self, root_dir, obj_list, n_points, graph_method,sphere_radius,force_max, neigbor_radius=None, neigbor_k=None, split='train'):

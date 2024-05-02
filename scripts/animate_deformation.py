@@ -19,9 +19,9 @@ def animate_meshes(initial_mesh, def_mesh, num_frames, extrapolation_frames):
     
     for i in range(total_frames):
         if i < num_frames:
-            alpha = i / (num_frames - 1)  # Linear interpolation parameter between initial and def meshes.
+            alpha = i / (num_frames - 1)  
         else:
-            alpha = 1 + (i - num_frames + 1) / extrapolation_frames  # Extrapolation parameter beyond def mesh.
+            alpha = 1 + (i - num_frames + 1) / extrapolation_frames 
         
         interpolated_vertices = (1 - alpha) * initial_vertices + alpha * def_vertices
         interpolated_mesh = o3d.geometry.TriangleMesh()
@@ -36,12 +36,11 @@ def animate_meshes(initial_mesh, def_mesh, num_frames, extrapolation_frames):
 def process_mesh(directory_path, file_name_deformed):
     file_name_resting = "InitialMesh.ply"
     
-    # Create a new directory to store the animated meshes
+
     parent_directory_path = pathlib.Path(directory_path).parent
     output_dir = os.path.join(parent_directory_path, "Cat_animate")
     os.makedirs(output_dir, exist_ok=True)
-    
-    # Copy the JSON file to the new directory
+
     json_file_name = file_name_deformed + ".json"
     shutil.copy(os.path.join(directory_path, json_file_name), os.path.join(output_dir, json_file_name))
     
@@ -53,15 +52,15 @@ def process_mesh(directory_path, file_name_deformed):
     
     mesh_list = animate_meshes(initial_mesh, def_mesh, num_interpolation_frames, num_extrapolation_frames)
     
-    # Save all the resulting meshes to the new directory
-    for idx, mesh in enumerate(mesh_list): # You can use this as a unique identifier for each file, representing the time of interpolation/extrapolation
+
+    for idx, mesh in enumerate(mesh_list):
         file_name = f"{file_name_deformed}_{idx}.ply"
         o3d.io.write_triangle_mesh(os.path.join(output_dir, file_name), mesh)
 
 if __name__ == "__main__":
-    directory_path = "../datasets/everyday_deform/deformations/Cat/"
+    directory_path = "dataset/everyday_deform/Cat/"
     all_files = [f for f in os.listdir(directory_path) if f.startswith("2023") and f.endswith(".ply")]
     
     for file in tqdm(all_files, desc="Processing files"):
-        file_name_deformed = os.path.splitext(file)[0] # Removing the .ply extension
+        file_name_deformed = os.path.splitext(file)[0]
         process_mesh(directory_path, file_name_deformed)

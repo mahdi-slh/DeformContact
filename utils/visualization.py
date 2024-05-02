@@ -6,13 +6,12 @@ from utils.graph_utils import *
 from pyquaternion import Quaternion
 
 def visualize_deformation_field(soft_rest_graph, soft_def_graph, rigid_graph, force_vector):
-    # Extract node features (points) from the graph object
+
     soft_rest_mesh_np = soft_rest_graph.detach().numpy()
     soft_def_mesh_np = soft_def_graph.detach().numpy()
     rigid_graph_np = rigid_graph.detach().numpy()
     force_vector_np = force_vector.detach().numpy()
 
-    # Calculate deformation magnitudes and find the point with the maximum deformation
     deformation_magnitudes = np.linalg.norm(soft_def_mesh_np - soft_rest_mesh_np, axis=1)
 
     pcd_rest = o3d.geometry.PointCloud()
@@ -27,9 +26,9 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph, rigid_graph, fo
     n = len(soft_rest_mesh_np)
     lineset.lines = o3d.utility.Vector2iVector([(i, i + n) for i in range(n)])
 
-    # Use the force vector for the direction
+
     direction = force_vector_np / np.linalg.norm(force_vector_np)
-    scaled_direction = -direction * 0.1  # Adjust the length of small vectors
+    scaled_direction = -direction * 0.1 
 
     start_points = rigid_graph_np
     end_points = rigid_graph_np + scaled_direction
@@ -39,7 +38,7 @@ def visualize_deformation_field(soft_rest_graph, soft_def_graph, rigid_graph, fo
     vector_lineset.lines = o3d.utility.Vector2iVector([(i, i + n_rigid) for i in range(n_rigid)])
     vector_lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.9] for _ in range(n_rigid)])
 
-    pcd_rigid.paint_uniform_color([0.0, 0, 0.8])  # Blue
+    pcd_rigid.paint_uniform_color([0.0, 0, 0.8])
     pcd_rest.paint_uniform_color([0, 0.8, 0])
     pcd_def.paint_uniform_color([0.8, 0.0, 0])
     lineset.colors = o3d.utility.Vector3dVector([[0.5, 0.5, 0.5] for _ in range(n)])
@@ -51,14 +50,13 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
     soft_rest_points_np = soft_rest_graph.pos.cpu().numpy()
     soft_rest_edge_index_np = soft_rest_graph.edge_index.t().cpu().numpy().astype(np.int32)
 
-    # Calculate the x-width of the resting object
     x_min = np.min(soft_rest_points_np[:, 0])
     x_max = np.max(soft_rest_points_np[:, 0])
     translation = (x_max - x_min)  *1.5
 
     soft_rest_pcd = o3d.geometry.PointCloud()
     soft_rest_pcd.points = o3d.utility.Vector3dVector(soft_rest_points_np)
-    soft_rest_pcd.paint_uniform_color([0, 0.8, 0])  # Green for rest mesh
+    soft_rest_pcd.paint_uniform_color([0, 0.8, 0])
 
     soft_rest_lines = o3d.geometry.LineSet()
     soft_rest_lines.points = o3d.utility.Vector3dVector(soft_rest_points_np)
@@ -87,7 +85,7 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
     
     soft_def_pcd = o3d.geometry.PointCloud()
     soft_def_pcd.points = o3d.utility.Vector3dVector(soft_def_points_np)
-    soft_def_pcd.paint_uniform_color([0.8, 0.8, 0])  # Yellow for deformed mesh
+    soft_def_pcd.paint_uniform_color([0.8, 0.8, 0]) 
     
     soft_def_lines = o3d.geometry.LineSet()
     soft_def_lines.points = o3d.utility.Vector3dVector(soft_def_points_np)
@@ -101,14 +99,13 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
     
     rigid_pcd = o3d.geometry.PointCloud()
     rigid_pcd.points = o3d.utility.Vector3dVector(rigid_points_np)
-    rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the rigid mesh
+    rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8]) 
     
     rigid_lines = o3d.geometry.LineSet()
     rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
     rigid_lines.lines = o3d.utility.Vector2iVector(rigid_edge_index_np)
     
 
-    # coor = o3d.geometry.TriangleMesh.create_coordinate_frame(0.1)
     geometries.extend([rigid_pcd, rigid_lines])
     
 
@@ -118,7 +115,7 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
         
         pred_pcd = o3d.geometry.PointCloud()
         pred_pcd.points = o3d.utility.Vector3dVector(pred_points_np)
-        pred_pcd.paint_uniform_color([0.8, 0, 0])  # Red for predicted mesh
+        pred_pcd.paint_uniform_color([0.8, 0, 0])  
         
         pred_lines = o3d.geometry.LineSet()
         pred_lines.points = o3d.utility.Vector3dVector(pred_points_np)
@@ -132,7 +129,7 @@ def visualize_merged_graphs(soft_rest_graph, soft_def_graph=None, rigid_graph=No
         
         rigid_pcd = o3d.geometry.PointCloud()
         rigid_pcd.points = o3d.utility.Vector3dVector(rigid_points_np)
-        rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  # Blue-ish for the rigid mesh
+        rigid_pcd.paint_uniform_color([0.5, 0.5, 0.8])  
         
         rigid_lines = o3d.geometry.LineSet()
         rigid_lines.points = o3d.utility.Vector3dVector(rigid_points_np)
@@ -147,7 +144,7 @@ def map_deformation_to_color(deformation_values):
     min_val, max_val = np.min(deformation_values), np.max(deformation_values)
     normalized_values = (deformation_values - min_val) / (max_val - min_val)
     
-    # Transition from white to black
+
     colors = np.ones((normalized_values.shape[0], 3)) - np.expand_dims(normalized_values, axis=1)
     
     return colors
@@ -213,12 +210,11 @@ def show_from_side(objs):
     top_rot = Quaternion(axis=(1.0, 0.0, 0.0), degrees=200)
     pose = np.eye(4)
     pose[2, 3] = 2.0
-    # pose[2,2]=1
+
     pose[0:3, 0:3] = top_rot.rotation_matrix
     cam.extrinsic = pose
     vis.get_view_control().convert_from_pinhole_camera_parameters(cam)
     vis.get_render_option().point_size = 8
-    # vis.get_render_option().light_on=False
     vis.run()
     vis.destroy_window()
 
