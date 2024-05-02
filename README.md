@@ -2,6 +2,9 @@
 
 This repository contains the implementation of a model that predicts deformation of shapes using physics encoded graph neural networks. Our approach has been accepted at ICRA 2024, and you can find the preprint of our paper on [arXiv](https://arxiv.org/abs/2402.03466).
 
+
+![DeformContact](https://mahdi-slh.github.io/pages_static/images/DeformContact_teaser.png)
+
 ## Prerequisites
 
 - **Anaconda or Miniconda**: Ensure Anaconda or Miniconda is installed on your system. Download it [here](https://www.anaconda.com/products/individual).
