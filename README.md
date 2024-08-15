@@ -34,7 +34,7 @@ Follow the on-screen instructions.
 
 
 4. **Download the dataset**
-Please download the dataset from [here](https://drive.google.com/file/d/1mWIK1WM-qEE67y9Kvj2UVY7d45fTUBHv/view?usp=sharing) and place it in the following directory within the cloned repository.
+Please download the dataset from [here](https://drive.google.com/file/d/1L9yuIvrlS3kb6GqaXGEzA68AEE5waDfX/view?usp=sharing) and place it in the following directory within the cloned repository.
    ```sh
     python visualize.py
 Ensure the config_path variable in the main function of visualize.py is set to the path of your config file.
